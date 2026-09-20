@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "DAPLink 无线 DAP 烧录+调试 (OpenOCD)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/Debug/Car_F429.elf",
+            "servertype": "openocd",
+            "serverpath": "D:/xpack-openocd-0.12.0-6/bin/openocd.exe",
+            "configFiles": [
+                "${workspaceFolder}/.vscode/openocd-daplink.cfg"
+            ],
+            "searchDir": [],
+            "device": "STM32F429VETx",
+            "svdFile": "C:/Users/twyyd/AppData/Local/stm32cube/packs/STMicroelectronics/stm32f4xx_dfp/1.2.0/SVD/STM32F429.svd",
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "none",
+            "preLaunchTask": "build"
+        }
+    ]
+}
