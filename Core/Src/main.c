@@ -309,24 +309,24 @@ int main(void) {
         if (lub_cat_re[1] == '1') {
           Lub_Cat_send_yolo(lub_cat_re[2] - 48);
           if (cat_centre_calibrate()) {
-            Lub_Cat_send_exit();
             HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
                               HAL_MAX_DELAY);
           }
         } else if (lub_cat_re[1] == '2') {
           Lub_Cat_send_ring();
           if (cat_centre_calibrate()) {
-            Lub_Cat_send_exit();
             HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
                               HAL_MAX_DELAY);
           }
-        } else {
+        } else if (lub_cat_re[1] == '3') {
           Lub_Cat_send_material(lub_cat_re[2] - 48);
           if (cat_centre_calibrate()) {
-            Lub_Cat_send_exit();
+
             HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
                               HAL_MAX_DELAY);
           }
+        } else if (lub_cat_re[1] == '0' && lub_cat_re[2] == '0') {
+          Lub_Cat_send_exit();
         }
       }
     }

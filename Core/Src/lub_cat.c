@@ -114,9 +114,9 @@ bool pid_to_cat(float angle_taget) {
   catready = false;
   opsready = false;
 
-  float Kp = 0.1f; // x轴比例增益
-  float Kd = 0.0f; // x轴微分增益
-  float ki = 0.0f; // x轴积分增益
+  float Kp = 0.11f;   // x轴比例增益
+  float Kd = 0.1f;    // x轴微分增益
+  float ki = 0.0001f; // x轴积分增益
   double vx = 0;
   double vy = 0;
   double wv = 0;
@@ -124,13 +124,19 @@ bool pid_to_cat(float angle_taget) {
   error_x = Pixel_Width_center - CAT_x;
   error_y = Pixel_Height_center - CAT_y;
   angle_error = angle_taget - OPS_angle;
-
-  vy =
-      (double)(Kp * error_x + Kd * (error_x - error_x_last) + ki * error_x_sum);
-  vx =
-      (double)(Kp * error_y + Kd * (error_y - error_y_last) + ki * error_y_sum);
-  wv = (double)(2 * angle_error + 1 * (angle_error - angle_error_last) +
-                0.006 * angle_error_sum);
+  if (error_x_last == 0 && error_y_last == 0) {
+    vy = (double)(Kp * error_x);
+    vx = (double)(Kp * error_y);
+    wv = (double)(2 * angle_error + 1 * (angle_error - angle_error_last) +
+                  0.006 * angle_error_sum);
+  } else {
+    vy = (double)(Kp * error_x + Kd * (error_x - error_x_last) +
+                  ki * error_x_sum);
+    vx = (double)(Kp * error_y + Kd * (error_y - error_y_last) +
+                  ki * error_y_sum);
+    wv = (double)(2 * angle_error + 1 * (angle_error - angle_error_last) +
+                  0.006 * angle_error_sum);
+  }
 
   vx = vx > mov_max ? mov_max : vx > mov_min ? vx : mov_min;
   vy = vy > mov_max ? mov_max : vy > mov_min ? vy : mov_min;

@@ -127,8 +127,8 @@ bool pid_to_v(float X_target, float Y_target,
     ops_cache = ops_cache - 360;
   }
   if (X_OLD == 0.0) {
-    vx = (double)(kp * (X_target - OPS_X) + ki * (xki_sum));
-    vy = (double)(kp * (Y_target - OPS_Y) + ki * (yki_sum));
+    vx = (double)(kp * (X_target - OPS_X));
+    vy = (double)(kp * (Y_target - OPS_Y));
     wv = (double)((kp + 0.05) * (angle_taget - ops_cache) +
                   (ki + 0.01) * (ang_sum));
   } else {
