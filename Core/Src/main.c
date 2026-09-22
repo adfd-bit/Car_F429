@@ -134,8 +134,8 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
         CAT_x = *(int16_t *)&CAT_redata[4];
         CAT_y = *(int16_t *)&CAT_redata[6];
         catready = true;
-        HAL_UART_Transmit(&huart1, (uint8_t *)"luban_ready",
-                          sizeof("luban_ready") - 1, HAL_MAX_DELAY);
+        // HAL_UART_Transmit(&huart4, (uint8_t *)"luban_ready",
+        //                   sizeof("luban_ready") - 1, HAL_MAX_DELAY);
       }
     } else if (CAT_redata[0] == 0xAF && CAT_redata[1] == 0XFA &&
                CAT_redata[2] == 0x0C) {
@@ -143,12 +143,12 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
         CAT_x = *(int16_t *)&CAT_redata[5];
         CAT_y = *(int16_t *)&CAT_redata[7];
         catready = true;
-        HAL_UART_Transmit(&huart1, (uint8_t *)"luban_ready",
-                          sizeof("luban_ready") - 1, HAL_MAX_DELAY);
+        // HAL_UART_Transmit(&huart4, (uint8_t *)"luban_ready",
+        //                   sizeof("luban_ready") - 1, HAL_MAX_DELAY);
       }
     }
     /* DMA_NORMAL 模式收完一包即停，必须重装接收，否则坐标只收一次 */
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart1, CAT_redata, CAT_data_len);
+    Lub_Cat_receive_start();
   } else if (huart == &huart2) { // OPS9数据处理
     if (Size == 28 && OPS_redata[0] == 0x0D && OPS_redata[1] == 0x0A &&
         OPS_redata[26] == 0x0A && OPS_redata[27] == 0x0D) {
@@ -165,7 +165,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
     }
     /* DMA_NORMAL 模式收完一包即停，必须重装接收，否则坐标只收一次 */
     ops9_receive_start();
-  } else if (huart == &huart4) { // AR_Screen数据处理
+  } else if (huart == &huart5) { // AR_Screen数据处理
     if (Size > 14) {
       ar_screen_sta = true;
     }
@@ -193,10 +193,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
   //   HAL_UART_Receive_IT(&huart1, arm_control_data, 5);
   // }
 
-  // if (huart == &huart1) { // 鲁班猫
-  //     lubanready = true;
-  //     HAL_UART_Receive_IT(&huart1, lub_cat_re, 4);
-  // }
+  if (huart == &huart1) { // 鲁班猫
+    lubanready = true;
+    HAL_UART_Receive_IT(&huart1, lub_cat_re, 4);
+  }
 }
 /*------------------------------------数据接收错误重启--------------------------------__*/
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
@@ -266,9 +266,9 @@ int main(void) {
   // HAL_UART_Receive_IT(&huart1, hc_os, 17); // 全局定位
   //	HAL_UART_Receive_IT(&huart1, &receive, 1);
   // HAL_UART_Receive_IT(&huart1, arm_control_data, 5); // 机械臂调试
-  // HAL_UART_Receive_IT(&huart1, lub_cat_re, 4);       // 鲁班猫
+  HAL_UART_Receive_IT(&huart1, lub_cat_re, 4); // 鲁班猫
   uint8_t posit_state = 0;
-  HAL_TIM_Base_Start_IT(&htim3); // OPS9启动
+  // HAL_TIM_Base_Start_IT(&htim3); // OPS9启动
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -278,7 +278,7 @@ int main(void) {
 
     /* USER CODE BEGIN 3 */
     //-----------------调试------------------------
-    if (arm_state) {
+    if (arm_state) { // 机械臂
       arm_state = false;
       if (arm_control_data[0] == 'f') {
         int pulse = (arm_control_data[2] - 48) * 100 +
