@@ -16,7 +16,7 @@
 #define sg90_min 0
 #define XH270_max 270
 #define XH270_min 0
-#define XH360_max 270
+#define XH360_max 360
 #define XH360_min 0
 
 typedef enum { SERVO_SG90 = 1, SERVO_XH270 = 2, SERVO_XH360 = 3 } Servo_ID;

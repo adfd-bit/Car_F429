@@ -120,10 +120,17 @@ bool pid_to_cat(float angle_taget) {
   double vx = 0;
   double vy = 0;
   double wv = 0;
-
+  float ops_cache = OPS_angle;
+  if (angle_taget == 180 && ops_cache < -125) {
+    ops_cache = ops_cache + 360;
+  }
+  if (angle_taget == -180 && ops_cache > 125) {
+    ops_cache = ops_cache - 360;
+  }
+  // 加一个掉帧判断，及时停止车
   error_x = Pixel_Width_center - CAT_x;
   error_y = Pixel_Height_center - CAT_y;
-  angle_error = angle_taget - OPS_angle;
+  angle_error = angle_taget - ops_cache;
   if (error_x_last == 0 && error_y_last == 0) {
     vy = (double)(Kp * error_x);
     vx = (double)(Kp * error_y);
@@ -190,16 +197,16 @@ bool pid_to_cat(float angle_taget) {
   }
 }
 bool cat_centre_calibrate() {
-  char c[40];
+  // char c[40];
   while (1) {
     // 注意删除
-    if (HAL_GetTick() - ALL_time > 100) {
-      int len = sprintf(c, "%d,%d,%f\n", CAT_x, CAT_y, OPS_angle);
-      HAL_UART_Transmit(&huart5, (uint8_t *)c, len, HAL_MAX_DELAY);
-      ALL_time = HAL_GetTick();
-    }
+    // if (HAL_GetTick() - ALL_time > 100) {
+    //   int len = sprintf(c, "%d,%d,%f\n", CAT_x, CAT_y, OPS_angle);
+    //   HAL_UART_Transmit(&huart5, (uint8_t *)c, len, HAL_MAX_DELAY);
+    //   ALL_time = HAL_GetTick();
+    // }
 
-    HAL_UART_Transmit(&huart5, (uint8_t *)c, sizeof(c), HAL_MAX_DELAY);
+    // HAL_UART_Transmit(&huart5, (uint8_t *)c, sizeof(c), HAL_MAX_DELAY);
 
     if (pid_to_cat(current_r)) {
       motor_stop();

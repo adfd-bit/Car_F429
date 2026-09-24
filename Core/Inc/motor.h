@@ -9,12 +9,12 @@
 #define INC_MOTOR_H_
 
 #include "main.h"
-#include "tim.h"
-#include "stdbool.h"
-#include "stdio.h"
-#include "usart.h"
 #include "math.h"
 #include "path_plan.h"
+#include "stdbool.h"
+#include "stdio.h"
+#include "tim.h"
+#include "usart.h"
 
 #define PI 3.14159265358979323846
 #define ErrTol 10.0
@@ -23,8 +23,8 @@
 #define KI_min -20000
 #define mov_max 320
 #define mov_min -320
-#define rad_max 900
-#define rad_min -900
+#define rad_max 600
+#define rad_min -600
 #define va_max 160
 extern uint32_t ALL_time;
 

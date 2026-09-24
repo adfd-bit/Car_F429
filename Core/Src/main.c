@@ -20,6 +20,7 @@
 #include "main.h"
 #include "dma.h"
 #include "gpio.h"
+#include "stm32f4xx_hal_uart.h"
 #include "tim.h"
 #include "usart.h"
 
@@ -34,6 +35,7 @@
 #include "servo_motor.h"
 #include "stdio.h"
 #include "string.h"
+#include <complex.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -84,6 +86,9 @@ volatile bool lubanready = false;
 bool luban_finish = false;
 uint8_t arm_control_data[5];
 bool arm_state = false;
+uint8_t car_debug[13];
+uint8_t car_debug_dalen = 0;
+bool car_debug_state = false;
 /*-----------------------------------状态变量----------------------------------*/
 uint32_t ALL_time = 0;
 volatile bool send_data_state = true;
@@ -169,6 +174,10 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
     if (Size > 14) {
       ar_screen_sta = true;
     }
+  } else if (huart == &huart1) {
+    car_debug_state = true;
+    car_debug_dalen = Size;
+    HAL_UARTEx_ReceiveToIdle_IT(&huart1, car_debug, 13);
   }
 }
 /*-------------------------------------串口外设---------------------------------*/
@@ -193,10 +202,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
   //   HAL_UART_Receive_IT(&huart1, arm_control_data, 5);
   // }
 
-  if (huart == &huart1) { // 鲁班猫
-    lubanready = true;
-    HAL_UART_Receive_IT(&huart1, lub_cat_re, 4);
-  }
+  // if (huart == &huart1) { // 鲁班猫
+  //   lubanready = true;
+  //   HAL_UART_Receive_IT(&huart1, lub_cat_re, 4);
+  // }
 }
 /*------------------------------------数据接收错误重启--------------------------------__*/
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
@@ -266,7 +275,8 @@ int main(void) {
   // HAL_UART_Receive_IT(&huart1, hc_os, 17); // 全局定位
   //	HAL_UART_Receive_IT(&huart1, &receive, 1);
   // HAL_UART_Receive_IT(&huart1, arm_control_data, 5); // 机械臂调试
-  HAL_UART_Receive_IT(&huart1, lub_cat_re, 4); // 鲁班猫
+  // HAL_UART_Receive_IT(&huart1, lub_cat_re, 4); // 鲁班猫
+  HAL_UARTEx_ReceiveToIdle_IT(&huart1, car_debug, 13); // 整车调试
   uint8_t posit_state = 0;
   // HAL_TIM_Base_Start_IT(&htim3); // OPS9启动
   /* USER CODE END 2 */
@@ -278,88 +288,179 @@ int main(void) {
 
     /* USER CODE BEGIN 3 */
     //-----------------调试------------------------
-    if (arm_state) { // 机械臂
-      arm_state = false;
-      if (arm_control_data[0] == 'f') {
-        int pulse = (arm_control_data[2] - 48) * 100 +
-                    (arm_control_data[3] - 48) * 10 + arm_control_data[4] - 48;
-        servo_set_angle(arm_control_data[1] - 48, pulse);
-      } else if (arm_control_data[0] == '+') {
-        int num = (arm_control_data[2] - 48) * 100 +
-                  (arm_control_data[3] - 48) * 10 + arm_control_data[4] - 48;
-        if (arm_control_data[1] == '0') {
-          send_motor_place_absolute(0, (uint32_t)num);
-        } else {
-          send_motor_place_relative(0, (uint32_t)num);
-        }
-      } else if (arm_control_data[0] == '-') {
-        int num = (arm_control_data[2] - 48) * 100 +
-                  (arm_control_data[3] - 48) * 10 + arm_control_data[4] - 48;
-        if (arm_control_data[1] == '0') {
-          send_motor_place_absolute(1, (uint32_t)num);
-        } else {
-          send_motor_place_relative(1, (uint32_t)num);
-        }
-      }
-    }
-    if (lubanready) { // 鲁班猫
-      lubanready = false;
-      Lub_Cat_receive_start();
-      if (lub_cat_re[0] == 'f' && lub_cat_re[3] == 'f') {
-        if (lub_cat_re[1] == '1') {
-          Lub_Cat_send_yolo(lub_cat_re[2] - 48);
-          if (cat_centre_calibrate()) {
-            HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
-                              HAL_MAX_DELAY);
-          }
-        } else if (lub_cat_re[1] == '2') {
-          Lub_Cat_send_ring();
-          if (cat_centre_calibrate()) {
-            HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
-                              HAL_MAX_DELAY);
-          }
-        } else if (lub_cat_re[1] == '3') {
-          Lub_Cat_send_material(lub_cat_re[2] - 48);
-          if (cat_centre_calibrate()) {
+    if (car_debug_state) {
+      car_debug_state = false;
+      if (car_debug_dalen == 4) { // 鲁班猫调试
+                                  //         色环检测	AF FA 07 01 01 CF FC
+                                  // 物料-红色	AF FA 08 02 01 03 CF FC
+                                  // 物料-黄色	AF FA 08 02 02 00 CF FC
+                                  // 物料-蓝色	AF FA 08 02 03 01 CF FC
+                                  // 物料-绿色	AF FA 08 02 04 06 CF FC
+                                  // 物料-黑色	AF FA 08 02 05 07 CF FC
+                                  // 物料-浅蓝色	AF FA 08 02 06 04 CF FC
+        Lub_Cat_receive_start();
+        if (car_debug[0] == 'f' && car_debug[3] == 'f') {
+          if (car_debug[1] == '1') {
+            Lub_Cat_send_yolo(car_debug[2] - 48);
+            if (cat_centre_calibrate()) {
+              HAL_UART_Transmit(&huart1, (uint8_t *)"对齐", sizeof("对齐") - 1,
+                                HAL_MAX_DELAY);
+            }
+          } else if (car_debug[1] == '2') {
+            Lub_Cat_send_ring();
+            if (cat_centre_calibrate()) {
+              HAL_UART_Transmit(&huart1, (uint8_t *)"对齐", sizeof("对齐") - 1,
+                                HAL_MAX_DELAY);
+            }
+          } else if (car_debug[1] == '3') {
+            Lub_Cat_send_material(car_debug[2] - 48);
+            if (cat_centre_calibrate()) {
 
-            HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
-                              HAL_MAX_DELAY);
+              HAL_UART_Transmit(&huart1, (uint8_t *)"对齐", sizeof("对齐") - 1,
+                                HAL_MAX_DELAY);
+            }
+          } else if (car_debug[1] == '0' && car_debug[2] == '0') {
+            Lub_Cat_send_exit();
           }
-        } else if (lub_cat_re[1] == '0' && lub_cat_re[2] == '0') {
-          Lub_Cat_send_exit();
+        }
+      } else if (car_debug_dalen == 5) { // 机械臂调试
+        if (car_debug[0] == 'f') {
+          int pulse = (car_debug[2] - 48) * 100 + (car_debug[3] - 48) * 10 +
+                      car_debug[4] - 48;
+          servo_set_angle(car_debug[1] - 48, pulse);
+        } else if (car_debug[0] == '+') { // 升降
+          int num = (car_debug[2] - 48) * 100 + (car_debug[3] - 48) * 10 +
+                    car_debug[4] - 48;
+          if (car_debug[1] == '0') {
+            send_motor_place_absolute(0, (uint32_t)num);
+          } else {
+            send_motor_place_relative(0, (uint32_t)num);
+          }
+        } else if (car_debug[0] == '-') { // 升降
+          int num = (car_debug[2] - 48) * 100 + (car_debug[3] - 48) * 10 +
+                    car_debug[4] - 48;
+          if (car_debug[1] == '0') {
+            send_motor_place_absolute(1, (uint32_t)num);
+          } else {
+            send_motor_place_relative(1, (uint32_t)num);
+          }
+        }
+      } else if (car_debug_dalen == 13) {
+        goal_x = 0;
+        goal_y = 0;
+        goal_w = 0;
+        goal_x = (car_debug[1] - 48) * 1000 + (car_debug[2] - 48) * 100 +
+                 (car_debug[3] - 48) * 10;
+        goal_y = (car_debug[5] - 48) * 1000 + (car_debug[6] - 48) * 100 +
+                 (car_debug[7] - 48) * 10;
+        goal_w = (car_debug[9] - 48) * 100 + (car_debug[10] - 48) * 10 +
+                 (car_debug[11] - 48) * 10;
+        if (car_debug[4] == '-') {
+          goal_x = 0 - goal_x;
+        }
+        if (car_debug[8] == '-') {
+          goal_y = 0 - goal_y;
+        }
+        if (car_debug[12] == '-') {
+          goal_w = 0 - goal_w;
+        }
+        if (car_debug[0] == 'A') {
+          if (pid_to_goal(goal_x, goal_y, goal_w)) {
+            HAL_UART_Transmit(&huart1, (uint8_t *)"全局定位okk",
+                              sizeof("全局定位okk") - 1, HAL_MAX_DELAY);
+          }
+        } else if (car_debug[0] == 'R') {
+          if (pid_to_goal_relative(goal_x, goal_y, goal_w)) {
+            HAL_UART_Transmit(&huart1, (uint8_t *)"相对移动okk",
+                              sizeof("相对移动okk") - 1, HAL_MAX_DELAY);
+          }
         }
       }
     }
-    if (re_sta) { // 全局定位
-      re_sta = false;
-      goal_x = 0;
-      goal_y = 0;
-      goal_w = 0;
-      // 非停车指令才解析目标点，避免 'p' 被下面的 STATE_NAV 覆盖
-      if (hc_os[16] == 'f') {
-        const int pow10[4] = {1000, 100, 10, 1};
-        for (int i = 0; i < 4; i++) {
-          if (hc_os[4] == '0')
-            goal_x += (hc_os[i] - 48) * pow10[i];
-          else
-            goal_x -= (hc_os[i] - 48) * pow10[i];
-          if (hc_os[10] == '0')
-            goal_y += (hc_os[i + 6] - 48) * pow10[i];
-          else
-            goal_y -= (hc_os[i + 6] - 48) * pow10[i];
-        }
-        if (hc_os[15] == '0')
-          goal_w =
-              (hc_os[12] - 48) * 100 + (hc_os[13] - 48) * 10 + hc_os[14] - 48;
-        else
-          goal_w = -((hc_os[12] - 48) * 100 + (hc_os[13] - 48) * 10 +
-                     hc_os[14] - 48);
-        if (pid_to_goal(goal_x, goal_y, goal_w)) {
-          HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
-                            HAL_MAX_DELAY);
-        }
-      }
-    }
+    // if (arm_state) { // 机械臂
+    //   arm_state = false;
+    //   if (arm_control_data[0] == 'f') {
+    //     int pulse = (arm_control_data[2] - 48) * 100 +
+    //                 (arm_control_data[3] - 48) * 10 + arm_control_data[4] -
+    //                 48;
+    //     servo_set_angle(arm_control_data[1] - 48, pulse);
+    //   } else if (arm_control_data[0] == '+') {
+    //     int num = (arm_control_data[2] - 48) * 100 +
+    //               (arm_control_data[3] - 48) * 10 + arm_control_data[4] - 48;
+    //     if (arm_control_data[1] == '0') {
+    //       send_motor_place_absolute(0, (uint32_t)num);
+    //     } else {
+    //       send_motor_place_relative(0, (uint32_t)num);
+    //     }
+    //   } else if (arm_control_data[0] == '-') {
+    //     int num = (arm_control_data[2] - 48) * 100 +
+    //               (arm_control_data[3] - 48) * 10 + arm_control_data[4] - 48;
+    //     if (arm_control_data[1] == '0') {
+    //       send_motor_place_absolute(1, (uint32_t)num);
+    //     } else {
+    //       send_motor_place_relative(1, (uint32_t)num);
+    //     }
+    //   }
+    // }
+    // if (lubanready) { // 鲁班猫
+    //   lubanready = false;
+    //   Lub_Cat_receive_start();
+    //   if (lub_cat_re[0] == 'f' && lub_cat_re[3] == 'f') {
+    //     if (lub_cat_re[1] == '1') {
+    //       Lub_Cat_send_yolo(lub_cat_re[2] - 48);
+    //       if (cat_centre_calibrate()) {
+    //         HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
+    //                           HAL_MAX_DELAY);
+    //       }
+    //     } else if (lub_cat_re[1] == '2') {
+    //       Lub_Cat_send_ring();
+    //       if (cat_centre_calibrate()) {
+    //         HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
+    //                           HAL_MAX_DELAY);
+    //       }
+    //     } else if (lub_cat_re[1] == '3') {
+    //       Lub_Cat_send_material(lub_cat_re[2] - 48);
+    //       if (cat_centre_calibrate()) {
+
+    //         HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
+    //                           HAL_MAX_DELAY);
+    //       }
+    //     } else if (lub_cat_re[1] == '0' && lub_cat_re[2] == '0') {
+    //       Lub_Cat_send_exit();
+    //     }
+    //   }
+    // }
+    // if (re_sta) { // 全局定位
+    //   re_sta = false;
+    //   goal_x = 0;
+    //   goal_y = 0;
+    //   goal_w = 0;
+    //   // 非停车指令才解析目标点，避免 'p' 被下面的 STATE_NAV 覆盖
+    //   if (hc_os[16] == 'f') {
+    //     const int pow10[4] = {1000, 100, 10, 1};
+    //     for (int i = 0; i < 4; i++) {
+    //       if (hc_os[4] == '0')
+    //         goal_x += (hc_os[i] - 48) * pow10[i];
+    //       else
+    //         goal_x -= (hc_os[i] - 48) * pow10[i];
+    //       if (hc_os[10] == '0')
+    //         goal_y += (hc_os[i + 6] - 48) * pow10[i];
+    //       else
+    //         goal_y -= (hc_os[i + 6] - 48) * pow10[i];
+    //     }
+    //     if (hc_os[15] == '0')
+    //       goal_w =
+    //           (hc_os[12] - 48) * 100 + (hc_os[13] - 48) * 10 + hc_os[14] -
+    //           48;
+    //     else
+    //       goal_w = -((hc_os[12] - 48) * 100 + (hc_os[13] - 48) * 10 +
+    //                  hc_os[14] - 48);
+    //     if (pid_to_goal(goal_x, goal_y, goal_w)) {
+    //       HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
+    //                         HAL_MAX_DELAY);
+    //     }
+    //   }
+    // }
 
     //-----------------状态机------------------------
     switch (currentState) { // 初始化，

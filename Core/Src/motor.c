@@ -120,10 +120,10 @@ bool pid_to_v(float X_target, float Y_target,
   float kd = 0.48;
   float ki = 0.0003;
   float ops_cache = OPS_angle;
-  if (angle_taget == 180 && ops_cache < 0) {
+  if (angle_taget == 180 && ops_cache < -125) {
     ops_cache = ops_cache + 360;
   }
-  if (angle_taget == -180 && ops_cache > 0) {
+  if (angle_taget == -180 && ops_cache > 125) {
     ops_cache = ops_cache - 360;
   }
   if (X_OLD == 0.0) {
@@ -212,15 +212,15 @@ bool pid_to_v(float X_target, float Y_target,
   }
 }
 bool pid_to_goal(float X_target, float Y_target,
-                 float angle_taget) { // 绝对坐标
+                 float angle_taget) { // 绝对坐标 单位mm
   char c[40];
   while (1) {
     //		注意删除
-    if (HAL_GetTick() - ALL_time > 100) {
-      int len = sprintf(c, "%f,%f,%f\n", OPS_X, OPS_Y, OPS_angle);
-      HAL_UART_Transmit(&huart1, (uint8_t *)c, len, HAL_MAX_DELAY);
-      ALL_time = HAL_GetTick();
-    }
+    // if (HAL_GetTick() - ALL_time > 100) {
+    //   int len = sprintf(c, "%f,%f,%f\n", OPS_X, OPS_Y, OPS_angle);
+    //   HAL_UART_Transmit(&huart1, (uint8_t *)c, len, HAL_MAX_DELAY);
+    //   ALL_time = HAL_GetTick();
+    // }
 
     if (pid_to_v(X_target, Y_target, angle_taget)) {
       motor_stop();
@@ -261,11 +261,11 @@ bool pid_to_path(int sta_x, int sta_y, int goal_x,
     state = false;
     while (!state) {
       // 注意删除
-      if (HAL_GetTick() - ALL_time > 100) {
-        int len = sprintf(c, "%f,%f,%f\n", OPS_X, OPS_Y, OPS_angle);
-        HAL_UART_Transmit(&huart1, (uint8_t *)c, len, HAL_MAX_DELAY);
-        ALL_time = HAL_GetTick();
-      }
+      // if (HAL_GetTick() - ALL_time > 100) {
+      //   int len = sprintf(c, "%f,%f,%f\n", OPS_X, OPS_Y, OPS_angle);
+      //   HAL_UART_Transmit(&huart1, (uint8_t *)c, len, HAL_MAX_DELAY);
+      //   ALL_time = HAL_GetTick();
+      // }
 
       if (pid_to_goal(nodes[path[j].x][path[j].y].real_x,
                       nodes[path[j].x][path[j].y].real_y, angle)) {
