@@ -131,6 +131,7 @@ bool pid_to_cat(float angle_taget) {
   error_x = Pixel_Width_center - CAT_x;
   error_y = Pixel_Height_center - CAT_y;
   angle_error = angle_taget - ops_cache;
+
   if (error_x_last == 0 && error_y_last == 0) {
     vy = (double)(Kp * error_x);
     vx = (double)(Kp * error_y);
@@ -179,7 +180,7 @@ bool pid_to_cat(float angle_taget) {
       error_y < ErrTol_cat && angle_error > -ErrTol_r &&
       angle_error < ErrTol_r) {
     calibrate_time++;
-    if (calibrate_time > 20) {
+    if (calibrate_time > 10) {
       error_x_last = 0;
       error_y_last = 0;
       angle_error_last = 0;

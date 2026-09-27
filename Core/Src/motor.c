@@ -213,9 +213,10 @@ bool pid_to_v(float X_target, float Y_target,
 }
 bool pid_to_goal(float X_target, float Y_target,
                  float angle_taget) { // 绝对坐标 单位mm
-  char c[40];
+  // char c[40];
   while (1) {
     //		注意删除
+    // char c[40];
     // if (HAL_GetTick() - ALL_time > 100) {
     //   int len = sprintf(c, "%f,%f,%f\n", OPS_X, OPS_Y, OPS_angle);
     //   HAL_UART_Transmit(&huart1, (uint8_t *)c, len, HAL_MAX_DELAY);
@@ -244,7 +245,7 @@ bool pid_to_path(int sta_x, int sta_y, int goal_x,
   static float old = 0;
   float angle = 0;
   bool state;
-  char c[40];
+
   if (!Find_path(sta_x, sta_y, goal_x, goal_y)) {
     return false;
   }
@@ -261,6 +262,7 @@ bool pid_to_path(int sta_x, int sta_y, int goal_x,
     state = false;
     while (!state) {
       // 注意删除
+      // char c[40];
       // if (HAL_GetTick() - ALL_time > 100) {
       //   int len = sprintf(c, "%f,%f,%f\n", OPS_X, OPS_Y, OPS_angle);
       //   HAL_UART_Transmit(&huart1, (uint8_t *)c, len, HAL_MAX_DELAY);
