@@ -19,14 +19,16 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
+#include "gpio.h"
+#include "stm32f4xx_hal.h"
 #include "tim.h"
 #include "usart.h"
-#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "OPS9.h"
 #include "ar_screen.h"
+#include "arm_control.h"
 #include "lub_cat.h"
 #include "math.h"
 #include "motor.h"
@@ -80,11 +82,6 @@ bool pt_sta = false;
 uint8_t hc_os[17];
 int goal_x = 0, goal_y = 0, goal_w = 0;
 volatile bool re_sta = false;
-uint8_t lub_cat_re[4];
-volatile bool lubanready = false;
-bool luban_finish = false;
-uint8_t arm_control_data[5];
-bool arm_state = false;
 uint8_t car_debug[13];
 uint8_t car_debug_dalen = 0;
 bool car_debug_state = false;
@@ -169,11 +166,13 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
     }
     /* DMA_NORMAL 模式收完一包即停，必须重装接收，否则坐标只收一次 */
     ops9_receive_start();
-  } else if (huart == &huart5) { // AR_Screen数据处理
-    if (Size > 14) {
-      ar_screen_sta = true;
-    }
-  } else if (huart == &huart1) {
+  }
+  // else if (huart == &huart) { // AR_Screen数据处理
+  //    if (Size > 14) {
+  //      ar_screen_sta = true;
+  //    }
+  //  }
+  else if (huart == &huart1) {
     car_debug_state = true;
     car_debug_dalen = Size;
     HAL_UARTEx_ReceiveToIdle_IT(&huart1, car_debug, 13);
@@ -222,11 +221,10 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
-int main(void)
-{
+ * @brief  The application entry point.
+ * @retval int
+ */
+int main(void) {
 
   /* USER CODE BEGIN 1 */
 
@@ -234,7 +232,8 @@ int main(void)
 
   /* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick.
+   */
   HAL_Init();
 
   /* USER CODE BEGIN Init */
@@ -263,6 +262,7 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USART6_UART_Init();
   MX_TIM12_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   //--------------------------------初始化----------------------------------
   servo_init();         // 舵机初始化
@@ -270,10 +270,8 @@ int main(void)
   ops9_receive_start(); /* 启动 OPS9 接收 DMA */
   //--------------------------------调试----------------------------------
   //	HAL_UART_Receive_IT(&huart1, pathl, sizeof(pathl));//路径规划
-  // HAL_UART_Receive_IT(&huart1, hc_os, 17); // 全局定位
   //	HAL_UART_Receive_IT(&huart1, &receive, 1);
-  // HAL_UART_Receive_IT(&huart1, arm_control_data, 5); // 机械臂调试
-  // HAL_UART_Receive_IT(&huart1, lub_cat_re, 4); // 鲁班猫
+
   HAL_UARTEx_ReceiveToIdle_IT(&huart1, car_debug, 13); // 整车调试
   uint8_t posit_state = 0;
   // HAL_TIM_Base_Start_IT(&htim3); // OPS9启动
@@ -288,14 +286,27 @@ int main(void)
     //-----------------调试------------------------
     if (car_debug_state) {
       car_debug_state = false;
-      if (car_debug_dalen == 4) { // 鲁班猫调试
-                                  //         色环检测	AF FA 07 01 01 CF FC
-                                  // 物料-红色	AF FA 08 02 01 03 CF FC
-                                  // 物料-黄色	AF FA 08 02 02 00 CF FC
-                                  // 物料-蓝色	AF FA 08 02 03 01 CF FC
-                                  // 物料-绿色	AF FA 08 02 04 06 CF FC
-                                  // 物料-黑色	AF FA 08 02 05 07 CF FC
-                                  // 物料-浅蓝色	AF FA 08 02 06 04 CF FC
+      if (car_debug_dalen == 3) {
+        if (car_debug[0] == 'g' && car_debug[1] == 'g') {
+          grab_ground();
+        } else if (car_debug[0] == 'g' && car_debug[1] == 'p') {
+          grab_plate(car_debug[2] - 48);
+        } else if (car_debug[0] == 'p' && car_debug[1] == 'g') {
+          place_ground();
+        } else if (car_debug[0] == 'p' && car_debug[1] == 'p') {
+          place_plate(car_debug[2] - 48);
+        } else if (car_debug[0] == 'p' && car_debug[1] == 'b' &&
+                   car_debug[2] == 'b') {
+          place_block();
+        }
+      } else if (car_debug_dalen == 4) { // 鲁班猫调试
+        //         色环检测	AF FA 07 01 01 CF FC
+        // 物料-红色	AF FA 08 02 01 03 CF FC
+        // 物料-黄色	AF FA 08 02 02 00 CF FC
+        // 物料-蓝色	AF FA 08 02 03 01 CF FC
+        // 物料-绿色	AF FA 08 02 04 06 CF FC
+        // 物料-黑色	AF FA 08 02 05 07 CF FC
+        // 物料-浅蓝色	AF FA 08 02 06 04 CF FC
         Lub_Cat_receive_start();
         if (car_debug[0] == 'f' && car_debug[3] == 'f') {
           if (car_debug[1] == '1') {
@@ -343,7 +354,38 @@ int main(void)
             send_motor_place_relative(1, (uint32_t)num);
           }
         }
-      } else if (car_debug_dalen == 13) {
+      } else if (car_debug_dalen == 6) {
+        Lub_Cat_receive_start();
+        HAL_Delay(500);
+        pid_to_goal(200, 200, 0);
+        if (pid_to_goal(200, 900, 0)) {
+          pid_to_goal(200, 900, 90);
+          pid_to_goal(250, 900, 90);
+          pid_to_goal(250, 900, 180);
+        }
+
+        to_yolo(0);
+        to_ring();
+        grab_plate(1);
+        place_ground();
+
+        pid_to_goal_relative(0, 150, 0);
+        to_yolo(1);
+        to_ring();
+        grab_plate(2);
+        place_ground();
+
+        pid_to_goal_relative(0, 150, 0);
+        to_yolo(2);
+        to_ring();
+        grab_plate(3);
+        place_ground();
+
+        servo_set_angle(SERVO_SG90, 5);
+        send_motor_place_absolute(0, 35);
+        servo_set_angle(SERVO_XH360, 88);
+
+      } else if (car_debug_dalen == 13) { // 定位
         goal_x = 0;
         goal_y = 0;
         goal_w = 0;
@@ -372,93 +414,11 @@ int main(void)
             HAL_UART_Transmit(&huart1, (uint8_t *)"相对移动okk",
                               sizeof("相对移动okk") - 1, HAL_MAX_DELAY);
           }
+        } else if (car_debug[0] == 'S') {
+          set_cur_pos(goal_w, goal_x, goal_y);
         }
       }
     }
-    // if (arm_state) { // 机械臂
-    //   arm_state = false;
-    //   if (arm_control_data[0] == 'f') {
-    //     int pulse = (arm_control_data[2] - 48) * 100 +
-    //                 (arm_control_data[3] - 48) * 10 + arm_control_data[4] -
-    //                 48;
-    //     servo_set_angle(arm_control_data[1] - 48, pulse);
-    //   } else if (arm_control_data[0] == '+') {
-    //     int num = (arm_control_data[2] - 48) * 100 +
-    //               (arm_control_data[3] - 48) * 10 + arm_control_data[4] - 48;
-    //     if (arm_control_data[1] == '0') {
-    //       send_motor_place_absolute(0, (uint32_t)num);
-    //     } else {
-    //       send_motor_place_relative(0, (uint32_t)num);
-    //     }
-    //   } else if (arm_control_data[0] == '-') {
-    //     int num = (arm_control_data[2] - 48) * 100 +
-    //               (arm_control_data[3] - 48) * 10 + arm_control_data[4] - 48;
-    //     if (arm_control_data[1] == '0') {
-    //       send_motor_place_absolute(1, (uint32_t)num);
-    //     } else {
-    //       send_motor_place_relative(1, (uint32_t)num);
-    //     }
-    //   }
-    // }
-    // if (lubanready) { // 鲁班猫
-    //   lubanready = false;
-    //   Lub_Cat_receive_start();
-    //   if (lub_cat_re[0] == 'f' && lub_cat_re[3] == 'f') {
-    //     if (lub_cat_re[1] == '1') {
-    //       Lub_Cat_send_yolo(lub_cat_re[2] - 48);
-    //       if (cat_centre_calibrate()) {
-    //         HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
-    //                           HAL_MAX_DELAY);
-    //       }
-    //     } else if (lub_cat_re[1] == '2') {
-    //       Lub_Cat_send_ring();
-    //       if (cat_centre_calibrate()) {
-    //         HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
-    //                           HAL_MAX_DELAY);
-    //       }
-    //     } else if (lub_cat_re[1] == '3') {
-    //       Lub_Cat_send_material(lub_cat_re[2] - 48);
-    //       if (cat_centre_calibrate()) {
-
-    //         HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
-    //                           HAL_MAX_DELAY);
-    //       }
-    //     } else if (lub_cat_re[1] == '0' && lub_cat_re[2] == '0') {
-    //       Lub_Cat_send_exit();
-    //     }
-    //   }
-    // }
-    // if (re_sta) { // 全局定位
-    //   re_sta = false;
-    //   goal_x = 0;
-    //   goal_y = 0;
-    //   goal_w = 0;
-    //   // 非停车指令才解析目标点，避免 'p' 被下面的 STATE_NAV 覆盖
-    //   if (hc_os[16] == 'f') {
-    //     const int pow10[4] = {1000, 100, 10, 1};
-    //     for (int i = 0; i < 4; i++) {
-    //       if (hc_os[4] == '0')
-    //         goal_x += (hc_os[i] - 48) * pow10[i];
-    //       else
-    //         goal_x -= (hc_os[i] - 48) * pow10[i];
-    //       if (hc_os[10] == '0')
-    //         goal_y += (hc_os[i + 6] - 48) * pow10[i];
-    //       else
-    //         goal_y -= (hc_os[i + 6] - 48) * pow10[i];
-    //     }
-    //     if (hc_os[15] == '0')
-    //       goal_w =
-    //           (hc_os[12] - 48) * 100 + (hc_os[13] - 48) * 10 + hc_os[14] -
-    //           48;
-    //     else
-    //       goal_w = -((hc_os[12] - 48) * 100 + (hc_os[13] - 48) * 10 +
-    //                  hc_os[14] - 48);
-    //     if (pid_to_goal(goal_x, goal_y, goal_w)) {
-    //       HAL_UART_Transmit(&huart1, (uint8_t *)"okk", sizeof("okk") - 1,
-    //                         HAL_MAX_DELAY);
-    //     }
-    //   }
-    // }
 
     //-----------------状态机------------------------
     switch (currentState) { // 初始化，
@@ -512,22 +472,21 @@ int main(void)
 }
 
 /**
-  * @brief System Clock Configuration
-  * @retval None
-  */
-void SystemClock_Config(void)
-{
+ * @brief System Clock Configuration
+ * @retval None
+ */
+void SystemClock_Config(void) {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
   /** Configure the main internal regulator output voltage
-  */
+   */
   __HAL_RCC_PWR_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
+   * in the RCC_OscInitTypeDef structure.
+   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -536,29 +495,26 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLN = 216;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
     Error_Handler();
   }
 
   /** Activate the Over-Drive mode
-  */
-  if (HAL_PWREx_EnableOverDrive() != HAL_OK)
-  {
+   */
+  if (HAL_PWREx_EnableOverDrive() != HAL_OK) {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+   */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
+                                RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
-  {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK) {
     Error_Handler();
   }
 }
@@ -568,11 +524,10 @@ void SystemClock_Config(void)
 /* USER CODE END 4 */
 
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
-void Error_Handler(void)
-{
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
+void Error_Handler(void) {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
@@ -582,14 +537,13 @@ void Error_Handler(void)
 }
 #ifdef USE_FULL_ASSERT
 /**
-  * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
-  * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
-  * @retval None
-  */
-void assert_failed(uint8_t *file, uint32_t line)
-{
+ * @brief  Reports the name of the source file and the source line number
+ *         where the assert_param error has occurred.
+ * @param  file: pointer to the source file name
+ * @param  line: assert_param error line source number
+ * @retval None
+ */
+void assert_failed(uint8_t *file, uint32_t line) {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line
      number, ex: printf("Wrong parameters value: file %s on line %d\r\n", file,

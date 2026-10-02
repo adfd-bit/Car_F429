@@ -8,9 +8,9 @@
 #ifndef INC_OPS9_H_
 #define INC_OPS9_H_
 
-#include "usart.h"
-#include "string.h"
 #include "stdbool.h"
+#include "string.h"
+#include "usart.h"
 
 #define OPS9_data_len 30 /* OPS9 接收缓冲区大小（28字节数据帧 + 2字节余量） */
 extern uint8_t OPS_redata[OPS9_data_len];
@@ -18,6 +18,9 @@ extern uint8_t OPS_redata[OPS9_data_len];
 extern volatile float OPS_angle;
 extern volatile float OPS_X;
 extern volatile float OPS_Y;
+extern float current_x;
+extern float current_y;
+extern float current_r;
 extern uint32_t ALL_time;
 
 void ops9_receive_start();

@@ -15,6 +15,9 @@ void ops9_receive_stop() {
   HAL_UART_AbortReceive(&huart2);
 }
 void set_cur_pos(float angle, float x, float y) {
+  float temp = x;
+  x = -y;
+  y = temp;
   uint8_t setdata[16];
   setdata[0] = 'A';
   setdata[1] = 'C';
@@ -24,4 +27,7 @@ void set_cur_pos(float angle, float x, float y) {
   memcpy(&setdata[8], &x, sizeof(x));
   memcpy(&setdata[12], &y, sizeof(y));
   HAL_UART_Transmit(&huart2, setdata, sizeof(setdata), HAL_MAX_DELAY);
+  current_x = x;
+  current_y = y;
+  current_r = angle;
 }

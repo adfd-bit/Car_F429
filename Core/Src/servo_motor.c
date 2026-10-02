@@ -7,20 +7,27 @@
 
 #include "servo_motor.h"
 #include "stm32f429xx.h"
+#include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_tim.h"
-#include "tim.h"
+#include <stdint.h>
+#include <stdlib.h>
+#include <sys/_intsup.h>
+
+uint16_t sg90_old = 0;
+uint16_t XH270_old = 0;
+uint16_t XH360_old = 0;
 
 void servo_init() {
-  HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_1);
 }
 void servo_stop() {
-  __HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_3, 500);
-  __HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, 500);
-  __HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_1, 500);
-  HAL_Delay(1);
-  HAL_TIM_PWM_Stop(&htim8, TIM_CHANNEL_3);
+  // __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, 500);
+  // __HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, 500);
+  // __HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_1, 500);
+  // HAL_Delay(1);
+  HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
   HAL_TIM_PWM_Stop(&htim9, TIM_CHANNEL_1);
   HAL_TIM_PWM_Stop(&htim12, TIM_CHANNEL_1);
 }
@@ -34,13 +41,35 @@ static uint32_t angle_to_pulse(uint16_t angle, uint16_t min, uint16_t max) {
 void servo_set_angle(Servo_ID id, uint16_t angle) {
   switch (id) {
   case SERVO_SG90:
-    TIM8->CCR3 = angle_to_pulse(angle, sg90_min, sg90_max);
+    TIM4->CCR1 = angle_to_pulse(angle, sg90_min, sg90_max);
     break;
   case SERVO_XH270:
     TIM9->CCR1 = angle_to_pulse(angle, XH270_min, XH270_max);
     break;
-  case SERVO_XH360:
-    TIM12->CCR1 = angle_to_pulse(angle, XH360_min, XH360_max);
+  case SERVO_XH360: {
+    int old = XH360_old;
+    int target = angle;
+    if (old == 0) {
+      TIM12->CCR1 = angle_to_pulse(angle, XH360_min, XH360_max);
+      XH360_old = target;
+      break;
+    }
+
+    if (old == target) {
+      break;
+    }
+
+    int step = (target > old) ? 1 : -1;
+    int steps = abs(target - old);
+
+    for (int i = 0; i < steps; i++) {
+      old += step;
+      TIM12->CCR1 = angle_to_pulse((uint16_t)old, XH360_min, XH360_max);
+      HAL_Delay(10);
+    }
+
+    XH360_old = (uint16_t)target;
     break;
+  }
   }
 }

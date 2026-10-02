@@ -14,8 +14,8 @@
 #include <stdbool.h>
 
 #define CAT_data_len 14
-#define Pixel_Width_center 320
-#define Pixel_Height_center 240
+#define Pixel_Width_center 335  // y 320
+#define Pixel_Height_center 220 // x 240
 #define ErrTol_cat 10.0
 
 /*-------------------------------发送指令给鲁班猫（协议定义）------------------------*/
@@ -47,7 +47,7 @@ typedef enum {
 
 static uint16_t calibrate_time __attribute__((unused)) = 0;
 extern volatile float OPS_angle;
-extern volatile float current_r;
+extern float current_r;
 extern volatile bool opsready;
 extern volatile bool catready;
 extern volatile int16_t CAT_x;

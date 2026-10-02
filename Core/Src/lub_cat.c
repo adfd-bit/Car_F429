@@ -34,6 +34,7 @@ void Lub_Cat_receive_stop() {
 物料-绿色	AF FA 08 02 04 06 CF FC
 物料-黑色	AF FA 08 02 05 07 CF FC
 物料-浅蓝色	AF FA 08 02 06 04 CF FC
+
 YOLO-one	AF FA 08 03 00 03 CF FC
 YOLO-two	AF FA 08 03 01 02 CF FC
 YOLO-three	AF FA 08 03 02 01 CF FC
@@ -128,8 +129,8 @@ bool pid_to_cat(float angle_taget) {
     ops_cache = ops_cache - 360;
   }
   // 加一个掉帧判断，及时停止车
-  error_x = Pixel_Width_center - CAT_x;
-  error_y = Pixel_Height_center - CAT_y;
+  error_x = CAT_x - Pixel_Width_center;
+  error_y = CAT_y - Pixel_Height_center;
   angle_error = angle_taget - ops_cache;
 
   if (error_x_last == 0 && error_y_last == 0) {
@@ -149,6 +150,16 @@ bool pid_to_cat(float angle_taget) {
   vx = vx > mov_max ? mov_max : vx > mov_min ? vx : mov_min;
   vy = vy > mov_max ? mov_max : vy > mov_min ? vy : mov_min;
   wv = wv > rad_max ? rad_max : wv > rad_min ? wv : rad_min;
+
+  if (angle_taget == 90) {
+    double temp = vx;
+    vx = vy;
+    vy = -temp;
+  }
+  if (angle_taget == 0) {
+    vx = -vx;
+    vy = -vy;
+  }
 
   Speed_Conversion(&vx, &vy);
   control_v(vx, vy, wv);

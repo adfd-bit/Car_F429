@@ -8,6 +8,7 @@
 #ifndef INC_SERVO_MOTOR_H_
 #define INC_SERVO_MOTOR_H_
 
+#include "math.h"
 #include "tim.h"
 
 #define servo_max 2500
