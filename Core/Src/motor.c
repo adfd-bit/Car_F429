@@ -126,16 +126,6 @@ bool pid_to_v(float X_target, float Y_target,
   float kd = 0.48;
   float ki = 0.0003;
   float ops_cache = OPS_angle;
-  if ((current_r == 180 || current_r == -180) && angle_taget == -90) {
-    if (current_r > 150) {
-      ops_cache = ops_cache - 360;
-    }
-  }
-  if ((current_r == 180 || current_r == -180) && angle_taget == 90) {
-    if (current_r < -150) {
-      ops_cache = ops_cache + 360;
-    }
-  }
   if (angle_taget == 180 && ops_cache < -125) {
     ops_cache = ops_cache + 360;
   }
@@ -207,6 +197,9 @@ bool pid_to_v(float X_target, float Y_target,
       (angle_taget - ops_cache) < ErrTol_r) {
     arrive_time++;
     if (arrive_time > 6) {
+      current_x = X_target;
+      current_y = Y_target;
+      current_r = angle_taget;
       X_OLD = 0;
       Y_OLD = 0;
       angle_OLD = 0;
@@ -216,9 +209,7 @@ bool pid_to_v(float X_target, float Y_target,
       arrive_time = 0;
       vxa = 0;
       vya = 0;
-      current_x = X_target;
-      current_y = Y_target;
-      current_r = angle_taget;
+
       return true;
     } else
       return false;
@@ -231,7 +222,7 @@ bool pid_to_goal(float X_target, float Y_target,
                  float angle_taget) { // 绝对坐标 单位mm
                                       // char c[40];
 
-  if (abs((int)(current_r - angle_taget)) >= 270) {
+  if (abs((int)(current_r - angle_taget)) > 260) {
     if (current_r == 90) {
       angle_taget = 180;
     } else if (current_r == -90) {
@@ -296,7 +287,7 @@ bool pid_to_path(int sta_x, int sta_y, int goal_x,
       // }
 
       if (pid_to_goal(nodes[path[j].x][path[j].y].real_x,
-                      nodes[path[j].x][path[j].y].real_y, angle)) {
+                      nodes[path[j].x][path[j].y].real_y, current_r)) {
         state = true;
       }
     }

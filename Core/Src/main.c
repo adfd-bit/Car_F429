@@ -161,6 +161,11 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
       float temp = OPS_X;
       OPS_X = OPS_Y;
       OPS_Y = -temp;
+      if (current_r == 180 && OPS_angle < -160) {
+        OPS_angle += 360;
+      } else if (current_r == -180 && OPS_angle > 160) {
+        OPS_angle -= 360;
+      }
       if (OPS_X >= -20000.0f && OPS_X <= 20000.0f && OPS_Y >= -20000.0f &&
           OPS_Y <= 20000.0f && OPS_angle >= -360.0f && OPS_angle <= 360.0f) {
         opsready = true;
@@ -404,13 +409,16 @@ int main(void) {
       continue;
     case STATE_NAV: {
       if (posit_state == 0 && pid_to_goal(200, 200, 0)) {
+        set_cur_pos(current_r, 200, 200);
         posit_state = 1;
       }
       if (posit_state == 1 && pid_to_path(0, 0, 2, 0)) { // 路径规划
+        set_cur_pos(current_r, 1050, 0);
         // AR_Screen_Start();
         posit_state = 2;
       }
       if (posit_state == 2 && pid_to_path(2, 0, 4, 2)) { // 抓
+        set_cur_pos(current_r, 1900, 1050);
         pid_to_goal(current_x, current_y, 0);
         Lub_Cat_receive_start();
         HAL_Delay(500);
@@ -434,7 +442,7 @@ int main(void) {
         pid_to_goal(current_x, current_y, 180);
         if (to_yolo(CAT_YOLO_TWO)) {
           to_ring();
-          set_cur_pos(current_r, 240, 1050);
+          set_cur_pos(current_r, 220, 1050);
           grab_plate(1);
           place_ground(1);
           grab_plate(2);
@@ -453,14 +461,6 @@ int main(void) {
       }
       if (posit_state == 4 && pid_to_path(0, 2, 2, 4)) { // 放2
         pid_to_goal_relative(0, -50, 0);
-        if (current_r == -180 || current_r == +180) {
-          pid_to_goal_relative(0, 0, -90);
-        }
-        if (current_r == -90) {
-          pid_to_goal_relative(0, 0, 90);
-          HAL_Delay(500);
-          pid_to_goal_relative(0, 0, 90);
-        }
 
         if (to_yolo(CAT_YOLO_TWO)) {
           to_ring();
@@ -475,6 +475,7 @@ int main(void) {
         posit_state = 5;
       }
       if (posit_state == 5 && pid_to_path(2, 4, 4, 2)) { // 抓
+        set_cur_pos(current_r, 1900, 1050);
         pid_to_goal(current_x, current_y, 0);
         if (to_material(CAT_COLOR_GREEN)) {
           grab_ground();
@@ -492,10 +493,11 @@ int main(void) {
         posit_state = 6;
       }
       if (posit_state == 6 && pid_to_path(4, 2, 0, 2)) { // 放1
+        pid_to_goal_relative(50, 0, 0);
         pid_to_goal(current_x, current_y, 180);
         if (to_yolo(CAT_YOLO_TWO)) {
           to_ring();
-          set_cur_pos(current_r, 240, 1050);
+          set_cur_pos(current_r, 220, 1050);
           grab_plate(1);
           place_ground(1);
           grab_plate(2);
@@ -513,6 +515,7 @@ int main(void) {
         posit_state = 7;
       }
       if (posit_state == 7 && pid_to_path(0, 2, 2, 4)) {
+        set_cur_pos(current_r, 1050, 1900);
         pid_to_goal_relative(0, -100, 0);
         if (current_r == -180 || current_r == +180) {
           pid_to_goal_relative(0, 0, -90);
