@@ -14,8 +14,8 @@
 #include <stdbool.h>
 
 #define CAT_data_len 14
-#define Pixel_Width_center 335  // y 320
-#define Pixel_Height_center 220 // x 240
+#define Pixel_Width_center 320  // x 320
+#define Pixel_Height_center 218 // y 240
 #define ErrTol_cat 10.0
 
 /*-------------------------------发送指令给鲁班猫（协议定义）------------------------*/
@@ -46,9 +46,7 @@ typedef enum {
 } CAT_Yolo_t;
 
 static uint16_t calibrate_time __attribute__((unused)) = 0;
-extern volatile float OPS_angle;
-extern float current_r;
-extern volatile bool opsready;
+extern volatile float current_r; /* 定义在 motor.c，另见 OPS9.h:23，两处须逐字一致 */
 extern volatile bool catready;
 extern volatile int16_t CAT_x;
 extern volatile int16_t CAT_y;

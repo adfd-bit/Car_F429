@@ -13,8 +13,10 @@
 #include "path_plan.h"
 #include "stdbool.h"
 #include "stdio.h"
+#include "stdlib.h"
 #include "tim.h"
 #include "usart.h"
+
 
 #define PI 3.14159265358979323846
 #define ErrTol 10.0
@@ -26,11 +28,12 @@
 #define rad_max 600
 #define rad_min -600
 #define va_max 160
-extern uint32_t ALL_time;
+extern uint32_t ALL_time; /* 定义在 main.c，另见 OPS9.h:24，两处须逐字一致 */
 
-extern volatile float OPS_angle;
-extern volatile float OPS_X;
-extern volatile float OPS_Y;
+extern volatile float
+    OPS_angle;               /* 定义在 main.c，另见 OPS9.h:18，两处须逐字一致 */
+extern volatile float OPS_X; /* 定义在 main.c，另见 OPS9.h:19，两处须逐字一致 */
+extern volatile float OPS_Y; /* 定义在 main.c，另见 OPS9.h:20，两处须逐字一致 */
 extern float angle_OLD;
 extern float X_OLD;
 extern float Y_OLD;

@@ -7,10 +7,11 @@
 #include "motor.h"
 #include "stm32f4xx_hal.h"
 #include "usart.h"
+#include <stdlib.h>
 // 从物料盘为0度，下降到底角度大约400度，上升到顶角度300
-float current_x = 0;
-float current_y = 0;
-float current_r = 0;
+volatile float current_x = 0;
+volatile float current_y = 0;
+volatile float current_r = 0;
 float angle_OLD = 0;
 float X_OLD = 0;
 float Y_OLD = 0;
@@ -41,7 +42,7 @@ void send_motor_place_absolute(uint8_t dir, uint32_t pulse) { //'0'升，'1'降
   data[1] = 0xFD;
   data[2] = dir;
   data[3] = 0x00;
-  data[4] = 0xB4;
+  data[4] = 0x96;
   data[5] = 0x00;
   data[6] = pulse >> 24;
   data[7] = pulse >> 16;
@@ -59,7 +60,7 @@ void send_motor_place_relative(uint8_t dir, uint32_t pulse) {
   data[1] = 0xFD;
   data[2] = dir;
   data[3] = 0x00;
-  data[4] = 0xB4;
+  data[4] = 0x96;
   data[5] = 0x00;
   data[6] = pulse >> 24;
   data[7] = pulse >> 16;
@@ -83,6 +84,7 @@ void send_motor_speed(uint8_t id) {
   data[6] = 0x01;
   data[7] = 0x6B;
   HAL_UART_Transmit(&huart3, data, 8, HAL_MAX_DELAY);
+  motor[id - 1] = 0;
 }
 void motor_go() {
   uint8_t c[4] = {0x00, 0xFF, 0x66, 0x6B};
@@ -124,6 +126,16 @@ bool pid_to_v(float X_target, float Y_target,
   float kd = 0.48;
   float ki = 0.0003;
   float ops_cache = OPS_angle;
+  if ((current_r == 180 || current_r == -180) && angle_taget == -90) {
+    if (current_r > 150) {
+      ops_cache = ops_cache - 360;
+    }
+  }
+  if ((current_r == 180 || current_r == -180) && angle_taget == 90) {
+    if (current_r < -150) {
+      ops_cache = ops_cache + 360;
+    }
+  }
   if (angle_taget == 180 && ops_cache < -125) {
     ops_cache = ops_cache + 360;
   }
@@ -191,8 +203,8 @@ bool pid_to_v(float X_target, float Y_target,
   }
   if ((X_target - OPS_X) > -ErrTol && (X_target - OPS_X) < ErrTol &&
       (Y_target - OPS_Y) > -ErrTol && (Y_target - OPS_Y) < ErrTol &&
-      (angle_taget - OPS_angle) > -ErrTol_r &&
-      (angle_taget - OPS_angle) < ErrTol_r) {
+      (angle_taget - ops_cache) > -ErrTol_r &&
+      (angle_taget - ops_cache) < ErrTol_r) {
     arrive_time++;
     if (arrive_time > 6) {
       X_OLD = 0;
@@ -217,7 +229,19 @@ bool pid_to_v(float X_target, float Y_target,
 }
 bool pid_to_goal(float X_target, float Y_target,
                  float angle_taget) { // 绝对坐标 单位mm
-  // char c[40];
+                                      // char c[40];
+
+  if (abs((int)(current_r - angle_taget)) >= 270) {
+    if (current_r == 90) {
+      angle_taget = 180;
+    } else if (current_r == -90) {
+      angle_taget = -180;
+    } else if (current_r == 180) {
+      angle_taget = 90;
+    } else if (current_r == -180) {
+      angle_taget = -90;
+    }
+  }
   while (1) {
     //		注意删除
     // char c[40];
@@ -246,7 +270,6 @@ bool pid_to_goal_relative(float X_target, float Y_target,
 }
 bool pid_to_path(int sta_x, int sta_y, int goal_x,
                  int goal_y) { // Astar路径规划
-  static float old = 0;
   float angle = 0;
   bool state;
 
@@ -255,10 +278,9 @@ bool pid_to_path(int sta_x, int sta_y, int goal_x,
   }
   for (uint8_t j = 2; j < path_length; j += 2) {
     angle = -90 * (path[j].x - path[j - 2].x) / 2; // 转动到Y轴
-    if (abs((int)(angle - old)) == 180)
-      angle = old;
+    if (abs((int)(angle - current_r)) == 180)
+      angle = current_r;
     pid_to_goal(current_x, current_y, angle);
-    old = angle;
     if (j + 2 < path_length && (abs(path[j + 2].y - path[j - 2].y) == 4 ||
                                 abs(path[j + 2].x - path[j - 2].x) == 4)) {
       j += 2;

@@ -39,6 +39,7 @@
 #include <complex.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 /* USER CODE END Includes */
 
@@ -87,6 +88,7 @@ uint8_t car_debug_dalen = 0;
 bool car_debug_state = false;
 /*-----------------------------------状态变量----------------------------------*/
 uint32_t ALL_time = 0;
+uint8_t posit_state = 0; // 状态机
 volatile bool send_data_state = true;
 volatile bool opsready = false;
 volatile bool catready = false;
@@ -273,7 +275,7 @@ int main(void) {
   //	HAL_UART_Receive_IT(&huart1, &receive, 1);
 
   HAL_UARTEx_ReceiveToIdle_IT(&huart1, car_debug, 13); // 整车调试
-  uint8_t posit_state = 0;
+
   // HAL_TIM_Base_Start_IT(&htim3); // OPS9启动
   /* USER CODE END 2 */
 
@@ -288,16 +290,15 @@ int main(void) {
       car_debug_state = false;
       if (car_debug_dalen == 3) {
         if (car_debug[0] == 'g' && car_debug[1] == 'g') {
-          grab_ground();
+          grab_ground_id(car_debug[2] - 48);
         } else if (car_debug[0] == 'g' && car_debug[1] == 'p') {
           grab_plate(car_debug[2] - 48);
         } else if (car_debug[0] == 'p' && car_debug[1] == 'g') {
-          place_ground();
+          place_ground(car_debug[2] - 48);
         } else if (car_debug[0] == 'p' && car_debug[1] == 'p') {
           place_plate(car_debug[2] - 48);
-        } else if (car_debug[0] == 'p' && car_debug[1] == 'b' &&
-                   car_debug[2] == 'b') {
-          place_block();
+        } else if (car_debug[0] == 'p' && car_debug[1] == 'b') {
+          place_block(car_debug[2] - 48);
         }
       } else if (car_debug_dalen == 4) { // 鲁班猫调试
         //         色环检测	AF FA 07 01 01 CF FC
@@ -358,33 +359,10 @@ int main(void) {
         Lub_Cat_receive_start();
         HAL_Delay(500);
         pid_to_goal(200, 200, 0);
-        if (pid_to_goal(200, 900, 0)) {
-          pid_to_goal(200, 900, 90);
-          pid_to_goal(250, 900, 90);
-          pid_to_goal(250, 900, 180);
+      } else if (car_debug_dalen == 7) {
+        if (car_debug[0] == 'g' && car_debug[1] == 'o') {
+          currentState = STATE_NAV;
         }
-
-        to_yolo(0);
-        to_ring();
-        grab_plate(1);
-        place_ground();
-
-        pid_to_goal_relative(0, 150, 0);
-        to_yolo(1);
-        to_ring();
-        grab_plate(2);
-        place_ground();
-
-        pid_to_goal_relative(0, 150, 0);
-        to_yolo(2);
-        to_ring();
-        grab_plate(3);
-        place_ground();
-
-        servo_set_angle(SERVO_SG90, 5);
-        send_motor_place_absolute(0, 35);
-        servo_set_angle(SERVO_XH360, 88);
-
       } else if (car_debug_dalen == 13) { // 定位
         goal_x = 0;
         goal_y = 0;
@@ -432,22 +410,128 @@ int main(void) {
         // AR_Screen_Start();
         posit_state = 2;
       }
-      if (posit_state == 2 && pid_to_path(2, 0, 4, 2)) {
+      if (posit_state == 2 && pid_to_path(2, 0, 4, 2)) { // 抓
+        pid_to_goal(current_x, current_y, 0);
+        Lub_Cat_receive_start();
+        HAL_Delay(500);
+        if (to_material(CAT_COLOR_RED)) {
+          grab_ground();
+          place_plate(3);
+        }
+        if (to_material(CAT_COLOR_YELLOW)) {
+          grab_ground();
+          place_plate(2);
+        }
+        if (to_material(CAT_COLOR_BLUE)) {
+          grab_ground();
+          place_plate(1);
+        }
+        arm_free();
         posit_state = 3;
       }
-      if (posit_state == 3 && pid_to_path(4, 2, 0, 2)) {
+      if (posit_state == 3 && pid_to_path(4, 2, 0, 2)) { // 放1
+        pid_to_goal_relative(50, 0, 0);
+        pid_to_goal(current_x, current_y, 180);
+        if (to_yolo(CAT_YOLO_TWO)) {
+          to_ring();
+          set_cur_pos(current_r, 240, 1050);
+          grab_plate(1);
+          place_ground(1);
+          grab_plate(2);
+          place_ground(2);
+          grab_plate(3);
+          place_ground(3);
+          grab_ground_id(3);
+          place_plate(3);
+          grab_ground_id(2);
+          place_plate(2);
+          grab_ground_id(1);
+          place_plate(1);
+          arm_free();
+        }
         posit_state = 4;
       }
-      if (posit_state == 4 && pid_to_path(0, 2, 2, 4)) {
+      if (posit_state == 4 && pid_to_path(0, 2, 2, 4)) { // 放2
+        pid_to_goal_relative(0, -50, 0);
+        if (current_r == -180 || current_r == +180) {
+          pid_to_goal_relative(0, 0, -90);
+        }
+        if (current_r == -90) {
+          pid_to_goal_relative(0, 0, 90);
+          HAL_Delay(500);
+          pid_to_goal_relative(0, 0, 90);
+        }
+
+        if (to_yolo(CAT_YOLO_TWO)) {
+          to_ring();
+          grab_plate(1);
+          place_ground(1);
+          grab_plate(2);
+          place_ground(2);
+          grab_plate(3);
+          place_ground(3);
+          arm_free();
+        }
         posit_state = 5;
       }
-      if (posit_state == 5 && pid_to_path(2, 4, 4, 2)) {
+      if (posit_state == 5 && pid_to_path(2, 4, 4, 2)) { // 抓
+        pid_to_goal(current_x, current_y, 0);
+        if (to_material(CAT_COLOR_GREEN)) {
+          grab_ground();
+          place_plate(3);
+        }
+        if (to_material(CAT_COLOR_BLACK)) {
+          grab_ground();
+          place_plate(2);
+        }
+        if (to_material(CAT_COLOR_LIGHT_BLUE)) {
+          grab_ground();
+          place_plate(1);
+        }
+        arm_free();
         posit_state = 6;
       }
-      if (posit_state == 6 && pid_to_path(4, 2, 0, 2)) {
+      if (posit_state == 6 && pid_to_path(4, 2, 0, 2)) { // 放1
+        pid_to_goal(current_x, current_y, 180);
+        if (to_yolo(CAT_YOLO_TWO)) {
+          to_ring();
+          set_cur_pos(current_r, 240, 1050);
+          grab_plate(1);
+          place_ground(1);
+          grab_plate(2);
+          place_ground(2);
+          grab_plate(3);
+          place_ground(3);
+          grab_ground_id(3);
+          place_plate(3);
+          grab_ground_id(2);
+          place_plate(2);
+          grab_ground_id(1);
+          place_plate(1);
+          arm_free();
+        }
         posit_state = 7;
       }
       if (posit_state == 7 && pid_to_path(0, 2, 2, 4)) {
+        pid_to_goal_relative(0, -100, 0);
+        if (current_r == -180 || current_r == +180) {
+          pid_to_goal_relative(0, 0, -90);
+        }
+        if (current_r == -90) {
+          pid_to_goal_relative(0, 0, 90);
+          HAL_Delay(500);
+          pid_to_goal_relative(0, 0, 90);
+        }
+
+        if (to_material(CAT_COLOR_YELLOW)) {
+          grab_plate(1);
+          place_block(1);
+          grab_plate(2);
+          place_block(2);
+          grab_plate(3);
+          place_block(3);
+          arm_free();
+        }
         posit_state = 8;
       }
       if (posit_state == 8 && pid_to_path(2, 4, 0, 0)) {

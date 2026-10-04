@@ -191,7 +191,7 @@ bool pid_to_cat(float angle_taget) {
       error_y < ErrTol_cat && angle_error > -ErrTol_r &&
       angle_error < ErrTol_r) {
     calibrate_time++;
-    if (calibrate_time > 10) {
+    if (calibrate_time > 5) {
       error_x_last = 0;
       error_y_last = 0;
       angle_error_last = 0;
