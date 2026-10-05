@@ -25,7 +25,7 @@ void grab_ground() {
   servo_set_angle(SERVO_SG90, servo_place);
   servo_set_angle(SERVO_XH360, yolo_3servo);
   HAL_Delay(1000);
-  send_motor_place_absolute(motor_down, arm_ullimit);
+  send_motor_place_absolute(motor_down, arm_dwlimit);
   HAL_Delay(1000);
   servo_set_angle(SERVO_SG90, servo_grab);
   HAL_Delay(800);
@@ -35,13 +35,11 @@ void grab_ground() {
 void grab_ground_id(uint8_t id) {
   switch (id) {
   case 1: {
-    send_motor_place_absolute(motor_up, yolo_motor);
-    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_place);
     servo_set_angle(SERVO_XH360, place1_3servo);
     servo_set_angle(SERVO_XH270, place1_2servo);
     HAL_Delay(1000);
-    send_motor_place_absolute(motor_down, arm_ullimit);
+    send_motor_place_absolute(motor_down, arm_dwlimit);
     HAL_Delay(1000);
     servo_set_angle(SERVO_SG90, servo_grab);
     HAL_Delay(800);
@@ -50,13 +48,11 @@ void grab_ground_id(uint8_t id) {
     break;
   }
   case 2: {
-    send_motor_place_absolute(motor_up, yolo_motor);
-    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_place);
     servo_set_angle(SERVO_XH360, yolo_3servo);
     servo_set_angle(SERVO_XH270, yolo_2servo);
     HAL_Delay(1000);
-    send_motor_place_absolute(motor_down, arm_ullimit);
+    send_motor_place_absolute(motor_down, arm_dwlimit);
     HAL_Delay(1000);
     servo_set_angle(SERVO_SG90, servo_grab);
     HAL_Delay(800);
@@ -65,13 +61,11 @@ void grab_ground_id(uint8_t id) {
     break;
   }
   case 3: {
-    send_motor_place_absolute(motor_up, yolo_motor);
-    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_place);
     servo_set_angle(SERVO_XH360, place3_3servo);
     servo_set_angle(SERVO_XH270, place3_2servo);
     HAL_Delay(1000);
-    send_motor_place_absolute(motor_down, arm_ullimit);
+    send_motor_place_absolute(motor_down, arm_dwlimit);
     HAL_Delay(1000);
     servo_set_angle(SERVO_SG90, servo_grab);
     HAL_Delay(800);
@@ -130,8 +124,6 @@ void grab_plate(uint8_t id) {
 void place_plate(uint8_t id) {
   switch (id) {
   case 1: {
-    send_motor_place_absolute(motor_up, arm_ullimit);
-    HAL_Delay(600);
     servo_set_angle(SERVO_XH270, grab13_2servo);
     servo_set_angle(SERVO_XH360, plate_one);
     HAL_Delay(1000);
@@ -142,8 +134,6 @@ void place_plate(uint8_t id) {
     break;
   }
   case 2: {
-    send_motor_place_absolute(motor_up, arm_ullimit);
-    HAL_Delay(600);
     servo_set_angle(SERVO_XH270, grab2_2servo);
     servo_set_angle(SERVO_XH360, plate_two);
     HAL_Delay(1000);
@@ -154,8 +144,6 @@ void place_plate(uint8_t id) {
     break;
   }
   case 3: {
-    send_motor_place_absolute(motor_up, arm_ullimit);
-    HAL_Delay(600);
     servo_set_angle(SERVO_XH270, grab13_2servo);
     servo_set_angle(SERVO_XH360, plate_thr);
     HAL_Delay(1000);
@@ -277,12 +265,12 @@ bool to_ring() {
   return false;
 }
 bool to_material(CAT_Color_t color) {
-  send_motor_place_absolute(motor_up, yolo_motor);
-  HAL_Delay(1000);
   servo_set_angle(SERVO_SG90, servo_place);
   HAL_Delay(500);
   servo_set_angle(SERVO_XH360, yolo_3servo);
+  HAL_Delay(1000);
   servo_set_angle(SERVO_XH270, yolo_2servo);
+  send_motor_place_absolute(motor_up, yolo_motor);
   HAL_Delay(1000);
   Lub_Cat_send_material(color);
   if (cat_centre_calibrate()) {

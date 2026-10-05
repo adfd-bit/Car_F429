@@ -54,6 +54,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/lub_cat.c
     Core/Inc/arm_control.h
     Core/Src/arm_control.c
+    Core/Inc/cy_z.h
+    Core/Src/cy_z.c
+
 )
 
 # Add include paths
@@ -75,3 +78,10 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
     # Add user defined libraries
 )
+
+# 让 printf/sprintf 支持 %f 浮点格式。
+# 原因：cmake/gcc-arm-none-eabi.cmake 里用了 --specs=nano.specs（newlib-nano），
+#       它为了省 Flash 默认把 printf 家族的浮点支持阉掉了，不加这行 "%f" 会静默输出空。
+# 位置：必须写在本文件。cmake/*.cmake 每次 CubeMX 重新生成工程都会被覆盖，本文件不会。
+# 代价：约 +2~3 KB Flash。若哪天要用 scanf 读 %f，再补一行 -u _scanf_float。
+target_link_options(${CMAKE_PROJECT_NAME} PRIVATE -u _printf_float)

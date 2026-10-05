@@ -17,10 +17,9 @@
 #include "tim.h"
 #include "usart.h"
 
-
 #define PI 3.14159265358979323846
 #define ErrTol 10.0
-#define ErrTol_r 3.0
+#define ErrTol_r 2.0
 #define kI_max 20000
 #define KI_min -20000
 #define mov_max 320

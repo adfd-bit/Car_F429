@@ -6,6 +6,7 @@
  */
 
 #include "OPS9.h"
+#include "cy_z.h"
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_def.h"
 #include "stm32f4xx_hal_uart.h"
@@ -41,7 +42,6 @@ void set_cur_pos_y(float y) {
   HAL_UART_Transmit(&huart2, setdata, 8, HAL_MAX_DELAY);
 }
 void set_cur_pos_angle(float angle) {
-  current_r = angle;
   uint8_t setdata[8] = {};
   setdata[0] = 'A';
   setdata[1] = 'C';
@@ -51,10 +51,18 @@ void set_cur_pos_angle(float angle) {
   HAL_UART_Transmit(&huart2, setdata, 8, HAL_MAX_DELAY);
 }
 void set_cur_pos(float angle, float x, float y) {
+  set_cur_pos_angle(angle);
+  HAL_Delay(100);
   set_cur_pos_x(x);
   HAL_Delay(100);
   set_cur_pos_y(y);
   HAL_Delay(100);
-  set_cur_pos_angle(angle);
-  HAL_Delay(100);
+}
+void cyz_to_ops() {
+  float cyz_angle_updata = cyz_updata_angle();
+  if (cyz_angle_updata != -999) {
+    cyz_receive_stop();
+    set_cur_pos_angle(cyz_angle_updata);
+    HAL_Delay(100);
+  }
 }

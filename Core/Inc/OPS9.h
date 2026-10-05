@@ -34,5 +34,5 @@ void set_cur_pos_x(float x);
 void set_cur_pos_y(float y);
 void set_cur_pos_angle(float angle);
 void set_cur_pos(float angle, float x, float y);
-
+void cyz_to_ops();
 #endif /* INC_OPS9_H_ */

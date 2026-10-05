@@ -18,7 +18,8 @@
 #define motor_up 0   // 机械臂上升
 #define motor_down 1 // 机械臂下降
 
-#define arm_ullimit 365 // 机械臂极限位置
+#define arm_ullimit 350 // 机械臂上极限位置
+#define arm_dwlimit 360 // 机械臂下极限位置
 #define arm_place 335   // 机械臂放置位置
 #define place_stack 0   // 机械臂叠放位置
 

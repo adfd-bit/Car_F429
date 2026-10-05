@@ -34,8 +34,8 @@ void motor_en() {
   motor_enable(5);
 }
 void send_motor_place_absolute(uint8_t dir, uint32_t pulse) { //'0'升，'1'降
-  if (pulse > 350)
-    pulse = 350;
+  if (pulse > 370)
+    pulse = 370;
   pulse = pulse * 320 / 36;
   uint8_t data[13];
   data[0] = 5;
