@@ -130,7 +130,7 @@ void place_plate(uint8_t id) {
     // send_motor_place_absolute(motor_up, 290);
     // HAL_Delay(1000);
     servo_set_angle(SERVO_SG90, servo_place);
-    HAL_Delay(1000);
+    HAL_Delay(300);
     break;
   }
   case 2: {
@@ -140,7 +140,7 @@ void place_plate(uint8_t id) {
     // send_motor_place_absolute(motor_up, 290);
     // HAL_Delay(1000);
     servo_set_angle(SERVO_SG90, servo_place);
-    HAL_Delay(1000);
+    HAL_Delay(300);
     break;
   }
   case 3: {
@@ -150,7 +150,7 @@ void place_plate(uint8_t id) {
     // send_motor_place_absolute(motor_up, 290);
     // HAL_Delay(1000);
     servo_set_angle(SERVO_SG90, servo_place);
-    HAL_Delay(1000);
+    HAL_Delay(300);
     break;
   }
   }
@@ -265,6 +265,7 @@ bool to_ring() {
   return false;
 }
 bool to_material(CAT_Color_t color) {
+  motor_stop();
   servo_set_angle(SERVO_SG90, servo_place);
   HAL_Delay(500);
   servo_set_angle(SERVO_XH360, yolo_3servo);

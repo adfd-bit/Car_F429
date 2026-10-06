@@ -5,8 +5,11 @@
  *      Author: twyyd
  */
 #include "motor.h"
+#include "OPS9.h"
+#include "cy_z.h"
 #include "stm32f4xx_hal.h"
 #include "usart.h"
+#include <stdbool.h>
 #include <stdlib.h>
 // 从物料盘为0度，下降到底角度大约400度，上升到顶角度300
 volatile float current_x = 0;
@@ -34,15 +37,15 @@ void motor_en() {
   motor_enable(5);
 }
 void send_motor_place_absolute(uint8_t dir, uint32_t pulse) { //'0'升，'1'降
-  if (pulse > 370)
-    pulse = 370;
+  if (pulse > 380)
+    pulse = 380;
   pulse = pulse * 320 / 36;
   uint8_t data[13];
   data[0] = 5;
   data[1] = 0xFD;
   data[2] = dir;
   data[3] = 0x00;
-  data[4] = 0x96;
+  data[4] = 0xB4;
   data[5] = 0x00;
   data[6] = pulse >> 24;
   data[7] = pulse >> 16;
@@ -83,8 +86,8 @@ void send_motor_speed(uint8_t id) {
   data[5] = 0x00;
   data[6] = 0x01;
   data[7] = 0x6B;
-  HAL_UART_Transmit(&huart3, data, 8, HAL_MAX_DELAY);
   motor[id - 1] = 0;
+  HAL_UART_Transmit(&huart3, data, 8, HAL_MAX_DELAY);
 }
 void motor_go() {
   uint8_t c[4] = {0x00, 0xFF, 0x66, 0x6B};

@@ -21,8 +21,6 @@
 #include "dma.h"
 #include "gpio.h"
 #include "stm32f4xx_hal.h"
-#include "stm32f4xx_hal_def.h"
-#include "stm32f4xx_hal_uart.h"
 #include "tim.h"
 #include "usart.h"
 
@@ -79,10 +77,13 @@ uint8_t CAT_redata[CAT_data_len];
 volatile int16_t CAT_x = 0;
 volatile int16_t CAT_y = 0;
 uint8_t ar_data[30];
+uint8_t ar_material_order[6] = {};
+uint8_t ar_number_order[6] = {};
 uint8_t cyz_redata[16];
 volatile float cyz_angle = 0;
 uint8_t cyz_cmd[8] = {0xA5, 0x5A, 0x01, 0x02, 0x02, 0xF8, 0x91, 0x5A};
 uint8_t cyz_clear[8] = {0xA5, 0x5A, 0x01, 0x01, 0x01, 0x30, 0x00, 0x5A};
+
 /*----------------------------------------------调试变量(可删)----------------------------*/
 uint8_t receive;
 uint8_t pathl[4];
@@ -103,6 +104,7 @@ volatile bool opsready = false;
 volatile bool catready = false;
 volatile bool ar_screen_sta =
     false; /* true = AR_Screen 接收数据完成标志，主循环用 */
+volatile bool cyz_state = false;
 SystemState_t currentState = STATE_INIT;
 /* USER CODE END PV */
 
@@ -165,6 +167,10 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
   } else if (huart == &huart2) { // OPS9数据处理
     if (Size == 28 && OPS_redata[0] == 0x0D && OPS_redata[1] == 0x0A &&
         OPS_redata[26] == 0x0A && OPS_redata[27] == 0x0D) {
+      // if (cyz_state == true) {
+      //   cyz_state = false;
+      //   OPS_angle = cyz_angle;
+      // }
       OPS_angle = *(float *)&OPS_redata[2];
       OPS_X = *(float *)&OPS_redata[14];
       OPS_Y = *(float *)&OPS_redata[18];
@@ -176,8 +182,9 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
       } else if (current_r == -180 && OPS_angle > 160) {
         OPS_angle -= 360;
       }
+
       if (OPS_X >= -20000.0f && OPS_X <= 20000.0f && OPS_Y >= -20000.0f &&
-          OPS_Y <= 20000.0f && OPS_angle >= -360.0f && OPS_angle <= 360.0f) {
+          OPS_Y <= 20000.0f && OPS_angle >= -180.0f && OPS_angle <= 180.0f) {
         opsready = true;
       }
     }
@@ -186,18 +193,16 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
   } else if (huart == &huart5) { // 陀螺仪
     if (Size == 16) {
       if (cyz_redata[0] == 0xAA && cyz_redata[1] == 0x55) {
+        cyz_state = true;
         cyz_angle = *(float *)&cyz_redata[4];
-        cyz_data_enter(cyz_angle);
       }
     }
     cyz_receive_start();
-  }
-  // else if (huart == &huart) { // AR_Screen数据处理
-  //    if (Size > 14) {
-  //      ar_screen_sta = true;
-  //    }
-  //  }
-  else if (huart == &huart1) {
+  } else if (huart == &huart7) { // AR_Screen数据处理
+    if (Size > 14) {
+      ar_screen_sta = true;
+    }
+  } else if (huart == &huart1) {
     car_debug_state = true;
     car_debug_dalen = Size;
     HAL_UARTEx_ReceiveToIdle_IT(&huart1, car_debug, 13);
@@ -288,17 +293,18 @@ int main(void) {
   MX_USART6_UART_Init();
   MX_TIM12_Init();
   MX_TIM4_Init();
+  MX_UART7_Init();
   /* USER CODE BEGIN 2 */
   //--------------------------------初始化----------------------------------
-  HAL_UART_Transmit(&huart5, cyz_cmd, 8, 500); // 陀螺仪
-  servo_init();                                // 舵机初始化
-  motor_en();                                  // 电机使能
-  ops9_receive_start();                        /* 启动 OPS9 接收 DMA */
+  HAL_UART_Transmit(&huart5, cyz_cmd, 8, HAL_MAX_DELAY); // 陀螺仪
+  servo_init();                                          // 舵机初始化
+  motor_en();                                            // 电机使能
+  ops9_receive_start(); /* 启动 OPS9 接收 DMA */
   //--------------------------------调试----------------------------------
   //	HAL_UART_Receive_IT(&huart1, pathl, sizeof(pathl));//路径规划
   //	HAL_UART_Receive_IT(&huart1, &receive, 1);
   HAL_UARTEx_ReceiveToIdle_IT(&huart1, car_debug, 13); // 整车调试
-  cyz_receive_start();
+  // cyz_receive_start();
   // HAL_TIM_Base_Start_IT(&htim3); // OPS9启动
   /* USER CODE END 2 */
 
@@ -395,7 +401,7 @@ int main(void) {
         goal_y = (car_debug[5] - 48) * 1000 + (car_debug[6] - 48) * 100 +
                  (car_debug[7] - 48) * 10;
         goal_w = (car_debug[9] - 48) * 100 + (car_debug[10] - 48) * 10 +
-                 (car_debug[11] - 48) * 10;
+                 (car_debug[11] - 48);
         if (car_debug[4] == '-') {
           goal_x = 0 - goal_x;
         }
@@ -426,73 +432,66 @@ int main(void) {
     case STATE_INIT:
       continue;
     case STATE_NAV: {
-      HAL_UART_Transmit(&huart5, cyz_clear, 8, 500);
+      HAL_UART_Transmit(&huart5, cyz_clear, 8, HAL_MAX_DELAY);
       if (posit_state == 0 && pid_to_goal(200, 200, 0)) {
         posit_state = 1;
       }
       if (posit_state == 1 && pid_to_path(0, 0, 2, 0)) { // 路径规划
-
+        pid_to_goal(current_x, current_y, 0);
         // AR_Screen_Start();
+        HAL_Delay(100);
+        // AR_screen_stop();
         posit_state = 2;
       }
       if (posit_state == 2 && pid_to_path(2, 0, 4, 2)) { // 抓
-        // set_cur_pos_angle(cyz_angle);
-        // HAL_Delay(100);
         pid_to_goal(current_x, current_y, 0);
         Lub_Cat_receive_start();
         HAL_Delay(500);
         send_motor_place_absolute(0, 150);
-        if (to_material(CAT_COLOR_RED)) {
-          cyz_to_ops(); // 更新ops9角度数据
+        if (to_material(ar_material_order[0])) {
           grab_ground();
           place_plate(3);
+          refresh_lubcat();
         }
-        if (to_material(CAT_COLOR_YELLOW)) {
+        if (to_material(ar_material_order[1])) {
           grab_ground();
           place_plate(2);
+          refresh_lubcat();
         }
-        if (to_material(CAT_COLOR_BLUE)) {
+        if (to_material(ar_material_order[2])) {
           grab_ground();
           place_plate(1);
+          refresh_lubcat();
         }
-        cyz_receive_start();
         arm_free();
         posit_state = 3;
       }
       if (posit_state == 3 && pid_to_path(4, 2, 0, 2)) { // 放1
-        // set_cur_pos_angle(cyz_angle);
-        // HAL_Delay(100);
         pid_to_goal_relative(50, 0, 0);
         pid_to_goal(current_x, current_y, 180);
         if (to_yolo(CAT_YOLO_TWO)) {
           to_ring();
-          set_cur_pos(current_r, 220, 1050);
-          cyz_to_ops();
           grab_plate(1);
-          place_ground(1);
+          place_ground(ar_number_order[2]);
           grab_plate(2);
-          place_ground(2);
+          place_ground(ar_number_order[1]);
           grab_plate(3);
-          place_ground(3);
-          grab_ground_id(3);
+          place_ground(ar_number_order[0]);
+          grab_ground_id(ar_number_order[0]);
           place_plate(3);
-          grab_ground_id(2);
+          grab_ground_id(ar_number_order[1]);
           place_plate(2);
-          grab_ground_id(1);
+          grab_ground_id(ar_number_order[2]);
           place_plate(1);
           arm_free();
-          cyz_receive_start();
+          refresh_lubcat();
         }
         posit_state = 4;
       }
       if (posit_state == 4 && pid_to_path(0, 2, 2, 4)) { // 放2
-        // set_cur_pos_angle(cyz_angle);
-        // HAL_Delay(100);
         pid_to_goal_relative(0, -50, 0);
-
         if (to_yolo(CAT_YOLO_TWO)) {
           to_ring();
-          cyz_to_ops();
           grab_plate(1);
           place_ground(1);
           grab_plate(2);
@@ -500,59 +499,57 @@ int main(void) {
           grab_plate(3);
           place_ground(3);
           arm_free();
-          cyz_receive_start();
+          refresh_lubcat();
         }
         posit_state = 5;
       }
       if (posit_state == 5 && pid_to_path(2, 4, 4, 2)) { // 抓
 
         pid_to_goal(current_x, current_y, 0);
-        if (to_material(CAT_COLOR_GREEN)) {
-          cyz_to_ops();
+        if (to_material(ar_material_order[3])) {
           grab_ground();
           place_plate(3);
+          refresh_lubcat();
         }
-        if (to_material(CAT_COLOR_BLACK)) {
+        if (to_material(ar_material_order[4])) {
           grab_ground();
           place_plate(2);
+          refresh_lubcat();
         }
-        if (to_material(CAT_COLOR_LIGHT_BLUE)) {
+        if (to_material(ar_material_order[5])) {
           grab_ground();
           place_plate(1);
+          refresh_lubcat();
         }
         arm_free();
-        cyz_receive_start();
+
         posit_state = 6;
       }
       if (posit_state == 6 && pid_to_path(4, 2, 0, 2)) { // 放1
-        // set_cur_pos_angle(cyz_angle);
-        // HAL_Delay(100);
+
         pid_to_goal_relative(50, 0, 0);
         pid_to_goal(current_x, current_y, 180);
         if (to_yolo(CAT_YOLO_TWO)) {
           to_ring();
-          set_cur_pos(current_r, 220, 1050);
-          cyz_to_ops();
           grab_plate(1);
-          place_ground(1);
+          place_ground(ar_number_order[5]);
           grab_plate(2);
-          place_ground(2);
+          place_ground(ar_number_order[4]);
           grab_plate(3);
-          place_ground(3);
-          grab_ground_id(3);
+          place_ground(ar_number_order[3]);
+          grab_ground_id(ar_number_order[3]);
           place_plate(3);
-          grab_ground_id(2);
+          grab_ground_id(ar_number_order[4]);
           place_plate(2);
-          grab_ground_id(1);
+          grab_ground_id(ar_number_order[5]);
           place_plate(1);
           arm_free();
-          cyz_receive_start();
+          refresh_lubcat();
         }
         posit_state = 7;
       }
       if (posit_state == 7 && pid_to_path(0, 2, 2, 4)) {
-        // set_cur_pos_angle(cyz_angle);
-        // HAL_Delay(100);
+
         pid_to_goal_relative(0, -100, 0);
         if (current_r == -180 || current_r == +180) {
           pid_to_goal_relative(0, 0, -90);
@@ -563,8 +560,7 @@ int main(void) {
           pid_to_goal_relative(0, 0, 90);
         }
 
-        if (to_material(CAT_COLOR_YELLOW)) {
-          cyz_to_ops();
+        if (to_material(ar_material_order[1])) {
           grab_plate(1);
           place_block(1);
           grab_plate(2);

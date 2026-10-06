@@ -15,6 +15,4 @@
 extern uint8_t cyz_redata[16];
 void cyz_receive_start();
 void cyz_receive_stop();
-void cyz_data_enter(float data);
-float cyz_updata_angle();
 #endif /* INC_CY_Z_H_ */

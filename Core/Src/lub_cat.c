@@ -7,6 +7,7 @@
 #include "lub_cat.h"
 #include "usart.h"
 #include <math.h>
+#include <stdbool.h>
 
 int16_t error_x = 0;
 int16_t error_y = 0;
@@ -226,3 +227,111 @@ bool cat_centre_calibrate() {
     }
   }
 }
+bool pid_to_cat_material(float angle_taget) {
+  if (!catready || !opsready)
+    return false;
+  catready = false;
+  opsready = false;
+
+  float Kp = 0.11f;   // x轴比例增益
+  float Kd = 0.1f;    // x轴微分增益
+  float ki = 0.0001f; // x轴积分增益
+  double vx = 0;
+  double vy = 0;
+  double wv = 0;
+  float ops_cache = OPS_angle;
+  if (angle_taget == 180 && ops_cache < -125) {
+    ops_cache = ops_cache + 360;
+  }
+  if (angle_taget == -180 && ops_cache > 125) {
+    ops_cache = ops_cache - 360;
+  }
+  // 加一个掉帧判断，及时停止车
+  error_x = CAT_x - Pixel_Width_center;
+  error_y = CAT_y - Pixel_Height_center;
+  angle_error = angle_taget - ops_cache;
+
+  if (error_x_last == 0 && error_y_last == 0) {
+    vy = (double)(Kp * error_x);
+    vx = (double)(Kp * error_y);
+    wv = (double)(2 * angle_error + 1 * (angle_error - angle_error_last) +
+                  0.006 * angle_error_sum);
+  } else {
+    vy = (double)(Kp * error_x + Kd * (error_x - error_x_last) +
+                  ki * error_x_sum);
+    vx = (double)(Kp * error_y + Kd * (error_y - error_y_last) +
+                  ki * error_y_sum);
+    wv = (double)(2 * angle_error + 1 * (angle_error - angle_error_last) +
+                  0.006 * angle_error_sum);
+  }
+
+  vx = vx > mov_max ? mov_max : vx > mov_min ? vx : mov_min;
+  vy = vy > mov_max ? mov_max : vy > mov_min ? vy : mov_min;
+  wv = wv > rad_max ? rad_max : wv > rad_min ? wv : rad_min;
+
+  if (angle_taget == 90) {
+    double temp = vx;
+    vx = vy;
+    vy = -temp;
+  }
+  if (angle_taget == 0) {
+    vx = -vx;
+    vy = -vy;
+  }
+
+  Speed_Conversion(&vx, &vy);
+  control_v(vx, vy, wv);
+
+  error_x_sum += error_x;
+  error_y_sum += error_y;
+  angle_error_sum += angle_error;
+  error_x_last = error_x;
+  error_y_last = error_y;
+  angle_error_last = angle_error;
+
+  if (send_data_state) {
+    send_data_state = false;
+    TIM1->CNT = 0;
+    HAL_TIM_Base_Start_IT(&htim1);
+  }
+
+  error_x_sum = error_x_sum > kI_max   ? kI_max
+                : error_x_sum > KI_min ? error_x_sum
+                                       : KI_min;
+  error_y_sum = error_y_sum > kI_max   ? kI_max
+                : error_y_sum > KI_min ? error_y_sum
+                                       : KI_min;
+  angle_error_sum = angle_error_sum > kI_max   ? kI_max
+                    : angle_error_sum > KI_min ? angle_error_sum
+                                               : KI_min;
+
+  if (error_x > -ErrTol_cat && error_x < ErrTol_cat &&
+      error_y > -ErrTol_cat_material && error_y < ErrTol_cat_material &&
+      angle_error > -ErrTol_r && angle_error < ErrTol_r) {
+    calibrate_time++;
+    if (calibrate_time > 5) {
+      error_x_last = 0;
+      error_y_last = 0;
+      angle_error_last = 0;
+      error_x_sum = 0;
+      error_y_sum = 0;
+      angle_error_sum = 0;
+      calibrate_time = 0;
+      current_r = angle_taget;
+      return true;
+    } else
+      return false;
+  } else {
+    calibrate_time = 0;
+    return false;
+  }
+}
+bool cat_centre_calibrate_material() {
+  while (1) {
+    if (pid_to_cat_material(current_r)) {
+      motor_stop();
+      return true;
+    }
+  }
+}
+void refresh_lubcat() { catready = false; }

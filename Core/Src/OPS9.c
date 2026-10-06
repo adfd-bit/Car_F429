@@ -13,6 +13,7 @@
 #include "usart.h"
 #include <math.h>
 #include <stdint.h>
+#include <string.h>
 void ops9_receive_start() {
   HAL_UARTEx_ReceiveToIdle_DMA(&huart2, OPS_redata, OPS9_data_len);
 }
@@ -50,19 +51,26 @@ void set_cur_pos_angle(float angle) {
   memcpy(&setdata[4], &angle, sizeof(float));
   HAL_UART_Transmit(&huart2, setdata, 8, HAL_MAX_DELAY);
 }
+// void set_cur_pos(float angle, float x, float y) {
+//   float tem = y;
+//   y = x;
+//   x = -tem;
+//   uint8_t setdata[16] = {};
+//   setdata[0] = 'A';
+//   setdata[1] = 'C';
+//   setdata[2] = 'T';
+//   setdata[3] = 'A';
+//   memcpy(&setdata[4], &angle, sizeof(float));
+//   memcpy(&setdata[8], &x, sizeof(float));
+//   memcpy(&setdata[12], &y, sizeof(float));
+//   HAL_UART_Transmit(&huart2, setdata, 16, HAL_MAX_DELAY);
+//   HAL_Delay(100);
+// }
 void set_cur_pos(float angle, float x, float y) {
-  set_cur_pos_angle(angle);
+  set_cur_pos_y(y);
   HAL_Delay(100);
   set_cur_pos_x(x);
   HAL_Delay(100);
-  set_cur_pos_y(y);
+  set_cur_pos_angle(angle);
   HAL_Delay(100);
-}
-void cyz_to_ops() {
-  float cyz_angle_updata = cyz_updata_angle();
-  if (cyz_angle_updata != -999) {
-    cyz_receive_stop();
-    set_cur_pos_angle(cyz_angle_updata);
-    HAL_Delay(100);
-  }
 }

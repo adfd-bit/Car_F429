@@ -14,9 +14,10 @@
 #include <stdbool.h>
 
 #define CAT_data_len 14
-#define Pixel_Width_center 320  // x 320
-#define Pixel_Height_center 218 // y 240
+#define Pixel_Width_center 325  // x 320
+#define Pixel_Height_center 230 // y 240
 #define ErrTol_cat 10.0
+#define ErrTol_cat_material 20.0
 
 /*-------------------------------发送指令给鲁班猫（协议定义）------------------------*/
 #define CAT_FRAME_FIX_LEN 7 /* 帧固定开销：AF FA + LEN + CMD + CS + CF FC */
@@ -46,7 +47,8 @@ typedef enum {
 } CAT_Yolo_t;
 
 static uint16_t calibrate_time __attribute__((unused)) = 0;
-extern volatile float current_r; /* 定义在 motor.c，另见 OPS9.h:23，两处须逐字一致 */
+extern volatile float
+    current_r; /* 定义在 motor.c，另见 OPS9.h:23，两处须逐字一致 */
 extern volatile bool catready;
 extern volatile int16_t CAT_x;
 extern volatile int16_t CAT_y;
@@ -61,5 +63,8 @@ void Lub_Cat_send_yolo(CAT_Yolo_t id);
 void Lub_Cat_send_exit(void);
 bool pid_to_cat(float angle_taget);
 bool cat_centre_calibrate();
+bool pid_to_cat_material(float angle_taget);
+bool cat_centre_calibrate_material();
+void refresh_lubcat();
 
 #endif /* INC_LUB_CAT_H_ */

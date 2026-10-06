@@ -42,6 +42,7 @@ extern PathPoint path[25];
 extern Node nodes[MAP_SIZE][MAP_SIZE];
 static uint16_t arrive_time __attribute__((unused)) = 0;
 extern volatile bool opsready;
+
 void send_motor_place_absolute(uint8_t dir, uint32_t pulse);
 void send_motor_place_relative(uint8_t dir, uint32_t pulse);
 void send_motor_speed(uint8_t id);
