@@ -25,5 +25,6 @@ typedef enum { SERVO_SG90 = 1, SERVO_XH270 = 2, SERVO_XH360 = 3 } Servo_ID;
 void servo_init();
 void servo_stop();
 void servo_set_angle(Servo_ID id, uint16_t angle);
+void servo_set_angle_quk(Servo_ID id, uint16_t angle);
 
 #endif /* INC_SERVO_MOTOR_H_ */

@@ -28,7 +28,7 @@ void AR_Screen_Start() {
         ar_material_order[2] = ar_data[2] - 48;
         ar_material_order[3] = ar_data[8] - 48;
         ar_material_order[4] = ar_data[9] - 48;
-        ar_material_order[6] = ar_data[10] - 48;
+        ar_material_order[5] = ar_data[10] - 48;
 
         ar_number_order[0] = ar_data[4] - 48;
         ar_number_order[1] = ar_data[5] - 48;

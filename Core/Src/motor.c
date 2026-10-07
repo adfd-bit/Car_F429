@@ -11,6 +11,7 @@
 #include "usart.h"
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 // 从物料盘为0度，下降到底角度大约400度，上升到顶角度300
 volatile float current_x = 0;
 volatile float current_y = 0;
@@ -94,6 +95,7 @@ void motor_go() {
   HAL_UART_Transmit(&huart3, c, 4, HAL_MAX_DELAY);
 }
 void motor_stop() {
+  memset(motor, 0, sizeof(motor));
   HAL_Delay(30);
   uint8_t data[5] = {0x00, 0xFE, 0x98, 0x00, 0x6B};
   HAL_UART_Transmit(&huart3, data, sizeof(data), HAL_MAX_DELAY);
@@ -119,6 +121,20 @@ void control_v(double vx, double vy, double wv) { // 转换成对应的电机的
 //	motor[3] = (int)(vy - vx + 0.6f * wv);
 // }
 
+/* 把角差归一化到 (-180, 180]，自动选最近方向，±180 不用特判。
+ * 例：target=180, cur=-100 → 直接算是 280 会绕远路，这里返回 -80，就近转。
+ * 只用来算误差的中间量，不要拿它去改 OPS_angle 这类全局变量。 */
+static float ang_diff(float target, float cur) {
+  float e = target - cur;
+  while (e > 180.0f) {
+    e -= 360.0f;
+  }
+  while (e <= -180.0f) {
+    e += 360.0f;
+  }
+  return e;
+}
+
 bool pid_to_v(float X_target, float Y_target,
               float angle_taget) { // 位移到对应坐标
   if (!opsready)
@@ -128,13 +144,12 @@ bool pid_to_v(float X_target, float Y_target,
   float kp = 0.6; // pid参数可调
   float kd = 0.48;
   float ki = 0.0003;
-  float ops_cache = OPS_angle;
-  if (angle_taget == 180 && ops_cache < -125) {
-    ops_cache = ops_cache + 360;
-  }
-  if (angle_taget == -180 && ops_cache > 125) {
-    ops_cache = ops_cache - 360;
-  }
+  /* ops_cache：把本次读数沿 ±360 平移，取离目标角最近的那个等价角度，
+   * 这样下面的 (angle_taget - ops_cache) 自动落在 (-180, 180]，不用特判 ±180。
+   * 只动这个局部副本，OPS_angle 保持传感器原值（main.c 里那 4 行已删）。
+   * 原来的写法只认 angle_taget==±180 且读数越过 ±125 才补，读数在 -100 这类
+   * 位置时会直接算出 280 的误差、绕远路转一大圈。 */
+  float ops_cache = angle_taget - ang_diff(angle_taget, OPS_angle);
   if (X_OLD == 0.0) {
     vx = (double)(kp * (X_target - OPS_X));
     vy = (double)(kp * (Y_target - OPS_Y));
@@ -272,7 +287,9 @@ bool pid_to_path(int sta_x, int sta_y, int goal_x,
   }
   for (uint8_t j = 2; j < path_length; j += 2) {
     angle = -90 * (path[j].x - path[j - 2].x) / 2; // 转动到Y轴
-    if (abs((int)(angle - current_r)) == 180)
+    /* 掉头判断：原来 (int)(angle - current_r) == 180 在 angle=180 /
+     * current_r=-180 时会算出 360，漏判。改成先把角差归一化到最近方向再比。 */
+    if (fabsf(ang_diff(angle, current_r)) > 179.0f)
       angle = current_r;
     pid_to_goal(current_x, current_y, angle);
     if (j + 2 < path_length && (abs(path[j + 2].y - path[j - 2].y) == 4 ||

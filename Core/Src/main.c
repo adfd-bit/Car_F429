@@ -125,13 +125,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
       id = 0;
       motor_go();
       HAL_TIM_Base_Stop_IT(&htim1);
+      __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
+      __HAL_TIM_SET_COUNTER(&htim1, 0);
       send_data_state = true;
     } else
       send_motor_speed(id);
   } else if (htim == &htim3) {
     static uint8_t a = 0;
     a++;
-    if (a > 14) {
+    if (a > 13) {
       a = 0;
       HAL_TIM_Base_Stop_IT(htim);
       currentState = STATE_NAV;
@@ -174,14 +176,22 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
       OPS_angle = *(float *)&OPS_redata[2];
       OPS_X = *(float *)&OPS_redata[14];
       OPS_Y = *(float *)&OPS_redata[18];
+      if (posit_state >= 5) {
+        OPS_angle += 4;
+        if (OPS_angle >= 180) {
+          OPS_angle = 180;
+        }
+      }
       float temp = OPS_X;
       OPS_X = OPS_Y;
       OPS_Y = -temp;
-      if (current_r == 180 && OPS_angle < -160) {
-        OPS_angle += 360;
-      } else if (current_r == -180 && OPS_angle > 160) {
-        OPS_angle -= 360;
-      }
+      /* 这里不要再去改 OPS_angle 本身。
+       * 原来那 4 行在 current_r==180 时把 -178 加成 182，紧跟着下面这个 ±180
+       * 校验立刻就不认它了 → opsready 再也置不起来 → pid_to_v 一直 return false
+       * →
+       * 不再下发新指令，驱动板保持上一条速度把车带走，也就是"跑到180度后跑偏"。
+       * 就近方向的判断已挪到 motor.c 的
+       * ang_diff()，用局部量做，全局读数保持原样。 */
 
       if (OPS_X >= -20000.0f && OPS_X <= 20000.0f && OPS_Y >= -20000.0f &&
           OPS_Y <= 20000.0f && OPS_angle >= -180.0f && OPS_angle <= 180.0f) {
@@ -304,8 +314,10 @@ int main(void) {
   //	HAL_UART_Receive_IT(&huart1, pathl, sizeof(pathl));//路径规划
   //	HAL_UART_Receive_IT(&huart1, &receive, 1);
   HAL_UARTEx_ReceiveToIdle_IT(&huart1, car_debug, 13); // 整车调试
+  uint8_t stack[3];
+  uint8_t stack2[3];
   // cyz_receive_start();
-  // HAL_TIM_Base_Start_IT(&htim3); // OPS9启动
+  HAL_TIM_Base_Start_IT(&htim3); // OPS9启动
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -438,30 +450,45 @@ int main(void) {
       }
       if (posit_state == 1 && pid_to_path(0, 0, 2, 0)) { // 路径规划
         pid_to_goal(current_x, current_y, 0);
-        // AR_Screen_Start();
+        AR_Screen_Start();
         HAL_Delay(100);
-        // AR_screen_stop();
+        AR_screen_stop();
+        for (int pd = 0; pd < 3; pd++) {
+          if (ar_number_order[pd] == 1) {
+            stack[0] = pd;
+          } else if (ar_number_order[pd] == 2) {
+            stack[1] = pd;
+          } else if (ar_number_order[pd] == 3) {
+            stack[2] = pd;
+          }
+        }
+        for (int pd = 3; pd < 6; pd++) {
+          if (ar_material_order[pd] == ar_material_order[stack[0]]) {
+            stack2[0] = pd;
+          } else if (ar_material_order[pd] == ar_material_order[stack[1]]) {
+            stack2[1] = pd;
+          } else if (ar_material_order[pd] == ar_material_order[stack[2]]) {
+            stack2[2] = pd;
+          }
+        }
         posit_state = 2;
       }
       if (posit_state == 2 && pid_to_path(2, 0, 4, 2)) { // 抓
         pid_to_goal(current_x, current_y, 0);
         Lub_Cat_receive_start();
         HAL_Delay(500);
-        send_motor_place_absolute(0, 150);
-        if (to_material(ar_material_order[0])) {
-          grab_ground();
+        send_motor_place_absolute(motor_up, arm_ullimit);
+        if (to_material_platform(ar_material_order[0])) {
+          grab_platform();
           place_plate(3);
-          refresh_lubcat();
         }
-        if (to_material(ar_material_order[1])) {
-          grab_ground();
+        if (to_material_platform(ar_material_order[1])) {
+          grab_platform();
           place_plate(2);
-          refresh_lubcat();
         }
-        if (to_material(ar_material_order[2])) {
-          grab_ground();
+        if (to_material_platform(ar_material_order[2])) {
+          grab_platform();
           place_plate(1);
-          refresh_lubcat();
         }
         arm_free();
         posit_state = 3;
@@ -493,11 +520,11 @@ int main(void) {
         if (to_yolo(CAT_YOLO_TWO)) {
           to_ring();
           grab_plate(1);
-          place_ground(1);
+          place_ground(ar_number_order[2]);
           grab_plate(2);
-          place_ground(2);
+          place_ground(ar_number_order[1]);
           grab_plate(3);
-          place_ground(3);
+          place_ground(ar_number_order[0]);
           arm_free();
           refresh_lubcat();
         }
@@ -506,20 +533,17 @@ int main(void) {
       if (posit_state == 5 && pid_to_path(2, 4, 4, 2)) { // 抓
 
         pid_to_goal(current_x, current_y, 0);
-        if (to_material(ar_material_order[3])) {
-          grab_ground();
+        if (to_material_platform(ar_material_order[3])) {
+          grab_platform();
           place_plate(3);
-          refresh_lubcat();
         }
-        if (to_material(ar_material_order[4])) {
-          grab_ground();
+        if (to_material_platform(ar_material_order[4])) {
+          grab_platform();
           place_plate(2);
-          refresh_lubcat();
         }
-        if (to_material(ar_material_order[5])) {
-          grab_ground();
+        if (to_material_platform(ar_material_order[5])) {
+          grab_platform();
           place_plate(1);
-          refresh_lubcat();
         }
         arm_free();
 
@@ -537,14 +561,13 @@ int main(void) {
           place_ground(ar_number_order[4]);
           grab_plate(3);
           place_ground(ar_number_order[3]);
-          grab_ground_id(ar_number_order[3]);
+          grab_ground_id(ar_number_order[stack2[2]]);
           place_plate(3);
-          grab_ground_id(ar_number_order[4]);
+          grab_ground_id(ar_number_order[stack2[1]]);
           place_plate(2);
-          grab_ground_id(ar_number_order[5]);
+          grab_ground_id(ar_number_order[stack2[0]]);
           place_plate(1);
           arm_free();
-          refresh_lubcat();
         }
         posit_state = 7;
       }
@@ -560,21 +583,26 @@ int main(void) {
           pid_to_goal_relative(0, 0, 90);
         }
 
-        if (to_material(ar_material_order[1])) {
+        if (to_material(ar_material_order[stack[1]])) {
           grab_plate(1);
           place_block(1);
           grab_plate(2);
           place_block(2);
           grab_plate(3);
           place_block(3);
-          arm_free();
+          servo_set_angle(SERVO_SG90, servo_place);
+          HAL_Delay(500);
+          servo_set_angle(SERVO_XH270, grab2_2servo);
+          servo_set_angle(SERVO_XH360, plate_two);
+          HAL_Delay(500);
         }
         posit_state = 8;
       }
       if (posit_state == 8 && pid_to_path(2, 4, 0, 0)) {
-        posit_state = 0;
-        if (pid_to_goal(15, -15, 0))
-          currentState = STATE_STOP;
+        posit_state = 9;
+        if (pid_to_goal(-160, 0, 0))
+          posit_state = 0;
+        currentState = STATE_STOP;
       } else
         continue;
       break;
