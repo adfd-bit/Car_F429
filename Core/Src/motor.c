@@ -46,7 +46,7 @@ void send_motor_place_absolute(uint8_t dir, uint32_t pulse) { //'0'升，'1'降
   data[1] = 0xFD;
   data[2] = dir;
   data[3] = 0x00;
-  data[4] = 0xB4;
+  data[4] = 0xC8;
   data[5] = 0x00;
   data[6] = pulse >> 24;
   data[7] = pulse >> 16;
