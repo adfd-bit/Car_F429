@@ -26,5 +26,6 @@ void servo_init();
 void servo_stop();
 void servo_set_angle(Servo_ID id, uint16_t angle);
 void servo_set_angle_quk(Servo_ID id, uint16_t angle);
+void pid_armservo(int16_t px, int16_t py);
 
 #endif /* INC_SERVO_MOTOR_H_ */

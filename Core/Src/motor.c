@@ -25,6 +25,12 @@ float yki_sum = 0;
 float vxa = 0;
 float vya = 0;
 int motor[4];
+bool Critical_judgment(float x, float y) {
+  if (x > 2000 || y > 2000) {
+    return false;
+  }
+  return true;
+}
 void motor_enable(uint8_t id) {
   uint8_t data[6] = {id, 0xF3, 0xAB, 0x01, 0x00, 0x6B};
   HAL_UART_Transmit(&huart3, data, sizeof(data), 100);
@@ -305,7 +311,9 @@ bool pid_to_path(int sta_x, int sta_y, int goal_x,
       //   HAL_UART_Transmit(&huart1, (uint8_t *)c, len, HAL_MAX_DELAY);
       //   ALL_time = HAL_GetTick();
       // }
-
+      if (!Critical_judgment(OPS_X, OPS_Y)) {
+        return false;
+      }
       if (pid_to_goal(nodes[path[j].x][path[j].y].real_x,
                       nodes[path[j].x][path[j].y].real_y, current_r)) {
         state = true;
@@ -314,6 +322,7 @@ bool pid_to_path(int sta_x, int sta_y, int goal_x,
   }
   return true;
 }
+
 /*====================================================================
  * ↓↓↓ 非阻塞版定位判断（状态机实现）—— 确认后替换上面的阻塞版 ↓↓↓
  * ------------------------------------------------------------------

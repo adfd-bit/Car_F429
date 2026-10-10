@@ -6,6 +6,7 @@
  */
 
 #include "arm_control.h"
+#include "lub_cat.h"
 #include "motor.h"
 #include "servo_motor.h"
 #include "stm32f4xx_hal.h"
@@ -21,9 +22,9 @@ void arm_free() {
 }
 void grab_platform() {
   send_motor_place_absolute(motor_up, grab_platform_motor);
-  HAL_Delay(1000);
+  HAL_Delay(200);
   servo_set_angle(SERVO_SG90, servo_grab);
-  HAL_Delay(800);
+  HAL_Delay(500);
   send_motor_place_absolute(motor_up, arm_ullimit);
   HAL_Delay(600);
 }
@@ -273,6 +274,7 @@ bool to_yolo(CAT_Yolo_t id) {
   if (cat_centre_calibrate()) {
     // if (current_r == 180)
     //   set_cur_pos(180, 180, 1050);
+    refresh_lubcat();
     HAL_UART_Transmit(&huart1, (uint8_t *)"对齐", sizeof("对齐") - 1,
                       HAL_MAX_DELAY);
     return true;
@@ -284,6 +286,7 @@ bool to_ring() {
   send_motor_place_absolute(motor_up, yolo_motor);
   Lub_Cat_send_ring();
   if (cat_centre_calibrate()) {
+    refresh_lubcat();
     HAL_UART_Transmit(&huart1, (uint8_t *)"对齐", sizeof("对齐") - 1,
                       HAL_MAX_DELAY);
     return true;
@@ -295,13 +298,15 @@ bool to_material(CAT_Color_t color) {
   servo_set_angle(SERVO_SG90, servo_place);
   HAL_Delay(500);
   servo_set_angle(SERVO_XH360, yolo_3servo);
-  HAL_Delay(1000);
+  HAL_Delay(300);
   servo_set_angle(SERVO_XH270, yolo_2servo);
   send_motor_place_absolute(motor_up, yolo_motor);
   HAL_Delay(800);
   refresh_lubcat();
   Lub_Cat_send_material(color);
+  refresh_lubcat();
   if (cat_centre_calibrate()) {
+    refresh_lubcat();
     HAL_UART_Transmit(&huart1, (uint8_t *)"对齐", sizeof("对齐") - 1,
                       HAL_MAX_DELAY);
     return true;
@@ -313,13 +318,15 @@ bool to_material_platform(CAT_Color_t color) {
   servo_set_angle(SERVO_SG90, servo_place);
   HAL_Delay(500);
   servo_set_angle_quk(SERVO_XH360, yolo_3servo);
-  HAL_Delay(1000);
+  HAL_Delay(300);
   servo_set_angle(SERVO_XH270, yolo_platform_2servo);
   send_motor_place_absolute(motor_up, arm_ullimit);
   HAL_Delay(800);
   refresh_lubcat();
   Lub_Cat_send_material(color);
+  refresh_lubcat();
   if (cat_centre_calibrate()) {
+    refresh_lubcat();
     HAL_UART_Transmit(&huart1, (uint8_t *)"对齐", sizeof("对齐") - 1,
                       HAL_MAX_DELAY);
     return true;
