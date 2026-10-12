@@ -30,12 +30,12 @@
 
 #define yolo_2servo 40          // yolo2 2舵机位置
 #define yolo_3servo 277         //  yolo2 3舵机位置
-#define yolo_motor 160          // yolo2 电机位置
+#define yolo_motor 120          // yolo2 电机位置
 #define yolo_platform_2servo 80 // 抓工作台2舵机位置
 
 #define plate_one 115 // 1号盘位置
-#define plate_two 89  // 2号盘位置
-#define plate_thr 59  // 3号盘位置
+#define plate_two 90  // 2号盘位置
+#define plate_thr 58  // 3号盘位置
 
 #define place1_3servo 320   // 放1号3舵机位置
 #define place1_2servo 122   // 放1号2舵机位置

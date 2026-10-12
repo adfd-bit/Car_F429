@@ -384,6 +384,13 @@ int main(void) {
               HAL_UART_Transmit(&huart1, (uint8_t *)"对齐", sizeof("对齐") - 1,
                                 HAL_MAX_DELAY);
             }
+          } else if (car_debug[1] == '4') {
+            Lub_Cat_send_material(car_debug[2] - 48);
+            if (cat_centre_calibrate_material()) {
+
+              HAL_UART_Transmit(&huart1, (uint8_t *)"对齐", sizeof("对齐") - 1,
+                                HAL_MAX_DELAY);
+            }
           } else if (car_debug[1] == '0' && car_debug[2] == '0') {
             Lub_Cat_send_exit();
           }
@@ -644,10 +651,16 @@ int main(void) {
             servo_set_angle(SERVO_XH270, 0);
           }
           place_block(ar_number_order[stack3[1]]);
-          grab_plate(1, 1);
           if (stack3[2] == 1) {
-            servo_set_angle(SERVO_XH270, 0);
+            pid_to_goal_relative(-50, 0, 0);
+            if (to_material(ar_material_order[stack[0]])) {
+              grab_plate(1, 0);
+              place_block(2);
+              posit_state = 8;
+              continue;
+            }
           }
+          grab_plate(1, 1);
           place_block(ar_number_order[stack3[2]]);
           servo_set_angle(SERVO_SG90, servo_place);
           HAL_Delay(500);

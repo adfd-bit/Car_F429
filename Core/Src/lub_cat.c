@@ -236,9 +236,9 @@ bool pid_to_cat_material(float angle_taget) {
   catready = false;
   opsready = false;
 
-  float Kp = 0.05f;   // x轴比例增益
-  float Kd = 0.1f;    // x轴微分增益
-  float ki = 0.0002f; // x轴积分增益
+  float Kp = 0.05f;    // x轴比例增益
+  float Kd = 0.0f;     // x轴微分增益
+  float ki = 0.00002f; // x轴积分增益
   double vx = 0;
   double vy = 0;
   double wv = 0;
@@ -308,7 +308,7 @@ bool pid_to_cat_material(float angle_taget) {
                     : angle_error_sum > KI_min ? angle_error_sum
                                                : KI_min;
 
-  if (error_x > -ErrTol_cat && error_x < ErrTol_cat &&
+  if (error_x > -ErrTol_cat_material && error_x < ErrTol_cat_material &&
       error_y > -ErrTol_cat_material && error_y < ErrTol_cat_material &&
       angle_error > -ErrTol_r && angle_error < ErrTol_r) {
     calibrate_time++;
@@ -334,13 +334,24 @@ bool cat_centre_calibrate_material() {
     if (!Critical_judgment(OPS_X, OPS_Y)) {
       return false;
     }
+    // 注意删除
+    char c[40];
+    if (HAL_GetTick() - ALL_time > 100) {
+      int len = sprintf(c, "%d,%d\n", (int)CAT_x, (int)CAT_y);
+      HAL_UART_Transmit(&huart1, (uint8_t *)c, len, HAL_MAX_DELAY);
+      ALL_time = HAL_GetTick();
+    }
     if (pid_to_cat_material(current_r)) {
       motor_stop();
       return true;
     }
   }
 }
-void refresh_lubcat() { catready = false; }
+void refresh_lubcat() {
+  CAT_x = 0;
+  CAT_y = 0;
+  catready = false;
+}
 bool pid_to_cat_arm(float angle_taget) {
   if (!catready || !opsready)
     return false;
