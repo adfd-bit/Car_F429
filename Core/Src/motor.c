@@ -9,7 +9,9 @@
 #include "cy_z.h"
 #include "stm32f4xx_hal.h"
 #include "usart.h"
+#include <math.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 // 从物料盘为0度，下降到底角度大约400度，上升到顶角度300
@@ -24,9 +26,13 @@ float xki_sum = 0;
 float yki_sum = 0;
 float vxa = 0;
 float vya = 0;
+double offs_vx = 0;
+double offs_vy = 0;
+double offs_wv = 0;
 int motor[4];
+uint32_t now = 0;
 bool Critical_judgment(float x, float y) {
-  if (x > 2000 || y > 2000) {
+  if (abs((int)current_x - x) > 130 || abs((int)current_y - y) > 130) {
     return false;
   }
   return true;
@@ -114,7 +120,11 @@ void Speed_Conversion(double *vx, double *vy) {
   *vx = sin(ops_rad) * temp_vy + cos(ops_rad) * temp_vx;
   *vy = cos(ops_rad) * temp_vy - sin(ops_rad) * temp_vx;
 }
-void control_v(double vx, double vy, double wv) { // 转换成对应的电机的速度 X型
+void control_v(double vx, double offs_vx, double vy, double offs_vy, double wv,
+               double offs_wv) { // 转换成对应的电机的速度 X型
+  vx += offs_vx;
+  vy += offs_vy;
+  wv += offs_wv;
   motor[0] = (int)(vy + vx - 0.6f * wv);
   motor[1] = (int)(vy - vx + 0.6f * wv);
   motor[2] = (int)(vy - vx - 0.6f * wv);
@@ -188,7 +198,6 @@ bool pid_to_v(float X_target, float Y_target,
     else
       vy = vya - va_max;
   }
-
   vxa = vx;
   vya = vy;
 
@@ -206,10 +215,19 @@ bool pid_to_v(float X_target, float Y_target,
   xki_sum = xki_sum > kI_max ? kI_max : xki_sum > KI_min ? xki_sum : KI_min;
   yki_sum = yki_sum > kI_max ? kI_max : yki_sum > KI_min ? yki_sum : KI_min;
   ang_sum = ang_sum > kI_max ? kI_max : ang_sum > KI_min ? ang_sum : KI_min;
-
+  if ((HAL_GetTick() - now) < 650 && (abs((int)current_y - Y_target > 500) ||
+                                      abs((int)current_x - X_target) > 500)) {
+    offs_vx = 80 * (sin(-current_r - cos(current_r)));
+    offs_vy = 0;
+    offs_wv = 0;
+  } else {
+    offs_vx = 0;
+    offs_vy = 0;
+    offs_wv = 0;
+  }
   if (send_data_state) {
     Speed_Conversion(&vx, &vy);
-    control_v(vx, vy, wv);
+    control_v(vx, offs_vx, vy, offs_vy, wv, offs_wv);
     send_data_state = false;
     TIM1->CNT = 0;
     HAL_TIM_Base_Start_IT(&htim1);
@@ -256,6 +274,7 @@ bool pid_to_goal(float X_target, float Y_target,
       angle_taget = -90;
     }
   }
+  now = HAL_GetTick();
   while (1) {
     //		注意删除
     // char c[40];

@@ -185,10 +185,10 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
       OPS_X = *(float *)&OPS_redata[14];
       OPS_Y = *(float *)&OPS_redata[18];
       if (posit_state >= 2) {
-        OPS_angle += 1;
+        OPS_angle += 1.5;
       }
       if (posit_state >= 5) {
-        OPS_angle += 2;
+        OPS_angle += 3;
       }
       if (OPS_angle >= 180) {
         OPS_angle = 180;
@@ -581,7 +581,7 @@ int main(void) {
       if (posit_state == 5 && pid_to_path(2, 4, 4, 2)) { // 2抓
 
         pid_to_goal(current_x, current_y, 0);
-        pid_to_goal_relative(-40, -20, 0);
+        pid_to_goal_relative(-30, -50, 0);
         while (1) {
           pid_to_goal(current_x, current_y, current_r);
           if (arm_state == 0 && to_material_platform(ar_material_order[3])) {
@@ -641,33 +641,38 @@ int main(void) {
           HAL_Delay(500);
           pid_to_goal_relative(0, 0, 90);
         }
+        while (1) {
+          pid_to_goal(current_x, current_y, current_r);
+          if (to_material(ar_material_order[stack[1]])) {
 
-        if (to_material(ar_material_order[stack[1]])) {
-
-          grab_plate(3, 1);
-          place_block(ar_number_order[stack3[0]]);
-          grab_plate(2, 1);
-          if (stack3[0] == 2 && stack3[1] == 1) {
-            servo_set_angle(SERVO_XH270, 0);
-          }
-          place_block(ar_number_order[stack3[1]]);
-          if (stack3[2] == 1) {
-            pid_to_goal_relative(-50, 0, 0);
-            if (to_material(ar_material_order[stack[0]])) {
-              grab_plate(1, 0);
-              place_block(2);
-              posit_state = 8;
-              continue;
+            grab_plate(3, 1);
+            place_block(ar_number_order[stack3[0]]);
+            grab_plate(2, 1);
+            if (stack3[0] == 2 && stack3[1] == 1) {
+              servo_set_angle(SERVO_XH270, 0);
             }
+            place_block(ar_number_order[stack3[1]]);
+            if (stack3[2] == 1) {
+              pid_to_goal_relative(-50, 0, 0);
+              if (to_material(ar_material_order[stack[0]])) {
+                grab_plate(1, 1);
+                place_block(2);
+                arm_free();
+                posit_state = 8;
+                continue;
+              }
+            }
+            grab_plate(1, 1);
+            place_block(ar_number_order[stack3[2]]);
+            servo_set_angle(SERVO_SG90, servo_place);
+            HAL_Delay(500);
+            servo_set_angle(SERVO_XH270, grab2_2servo);
+            servo_set_angle(SERVO_XH360, plate_two);
+            HAL_Delay(500);
+            break;
           }
-          grab_plate(1, 1);
-          place_block(ar_number_order[stack3[2]]);
-          servo_set_angle(SERVO_SG90, servo_place);
-          HAL_Delay(500);
-          servo_set_angle(SERVO_XH270, grab2_2servo);
-          servo_set_angle(SERVO_XH360, plate_two);
-          HAL_Delay(500);
         }
+
         posit_state = 8;
       }
       if (posit_state == 8 && pid_to_path(2, 4, 0, 0)) {

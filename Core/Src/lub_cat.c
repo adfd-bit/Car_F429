@@ -163,9 +163,6 @@ bool pid_to_cat(float angle_taget) {
     vy = -vy;
   }
 
-  Speed_Conversion(&vx, &vy);
-  control_v(vx, vy, wv);
-
   error_x_sum += error_x;
   error_y_sum += error_y;
   angle_error_sum += angle_error;
@@ -174,6 +171,8 @@ bool pid_to_cat(float angle_taget) {
   angle_error_last = angle_error;
 
   if (send_data_state) {
+    Speed_Conversion(&vx, &vy);
+    control_v(vx, 0, vy, 0, wv, 0);
     send_data_state = false;
     TIM1->CNT = 0;
     HAL_TIM_Base_Start_IT(&htim1);
@@ -282,9 +281,6 @@ bool pid_to_cat_material(float angle_taget) {
     vy = -vy;
   }
 
-  Speed_Conversion(&vx, &vy);
-  control_v(vx, vy, wv);
-
   error_x_sum += error_x;
   error_y_sum += error_y;
   angle_error_sum += angle_error;
@@ -293,6 +289,8 @@ bool pid_to_cat_material(float angle_taget) {
   angle_error_last = angle_error;
 
   if (send_data_state) {
+    Speed_Conversion(&vx, &vy);
+    control_v(vx, 0, vy, 0, wv, 0);
     send_data_state = false;
     TIM1->CNT = 0;
     HAL_TIM_Base_Start_IT(&htim1);
@@ -405,7 +403,7 @@ bool pid_to_cat_arm(float angle_taget) {
 
   if (send_data_state) {
     Speed_Conversion(&vx, &vy);
-    control_v(0, 0, wv);
+    control_v(0, 0, 0, 0, wv, 0);
     send_data_state = false;
     TIM1->CNT = 0;
     HAL_TIM_Base_Start_IT(&htim1);

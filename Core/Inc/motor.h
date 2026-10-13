@@ -27,6 +27,7 @@
 #define rad_max 600
 #define rad_min -600
 #define va_max 160
+
 extern uint32_t ALL_time; /* 定义在 main.c，另见 OPS9.h:24，两处须逐字一致 */
 
 extern volatile float
@@ -52,7 +53,8 @@ void motor_en();
 void motor_p();
 void motor_stop();
 void Speed_Conversion(double *vx, double *vy);
-void control_v(double vx, double vy, double wv);
+void control_v(double vx, double offs_vx, double vy, double offs_vy, double wv,
+               double offs_wv);
 bool pid_to_x_y(float X_target, float Y_target);
 bool pid_to_w(float angle_taget);
 bool pid_to_v(float X_target, float Y_target, float angle_taget);

@@ -49,7 +49,7 @@ void grab_ground_id(uint8_t id) {
     servo_set_angle(SERVO_XH270, place1_2servo);
     HAL_Delay(600);
     send_motor_place_absolute(motor_down, arm_dwlimit);
-    HAL_Delay(1000);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_grab);
     HAL_Delay(800);
     send_motor_place_absolute(motor_up, arm_ullimit);
@@ -62,7 +62,7 @@ void grab_ground_id(uint8_t id) {
     servo_set_angle(SERVO_XH270, yolo_2servo);
     HAL_Delay(600);
     send_motor_place_absolute(motor_down, arm_dwlimit);
-    HAL_Delay(1000);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_grab);
     HAL_Delay(800);
     send_motor_place_absolute(motor_up, arm_ullimit);
@@ -75,7 +75,7 @@ void grab_ground_id(uint8_t id) {
     servo_set_angle(SERVO_XH270, place3_2servo);
     HAL_Delay(600);
     send_motor_place_absolute(motor_down, arm_dwlimit);
-    HAL_Delay(1000);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_grab);
     HAL_Delay(800);
     send_motor_place_absolute(motor_up, arm_ullimit);
@@ -91,7 +91,7 @@ void grab_plate(uint8_t id, uint8_t mod) {
     HAL_Delay(300);
     servo_set_angle(SERVO_SG90, servo_place);
     servo_set_angle(SERVO_XH270, grab13_2servo);
-    HAL_Delay(500);
+    HAL_Delay(200);
     servo_set_angle_quk(SERVO_XH360, plate_one);
     HAL_Delay(700);
     servo_set_angle(SERVO_SG90, servo_grab);
@@ -110,7 +110,7 @@ void grab_plate(uint8_t id, uint8_t mod) {
     HAL_Delay(300);
     servo_set_angle(SERVO_SG90, servo_place);
     servo_set_angle(SERVO_XH270, grab2_2servo);
-    HAL_Delay(500);
+    HAL_Delay(200);
     servo_set_angle_quk(SERVO_XH360, plate_two);
     HAL_Delay(700);
     servo_set_angle(SERVO_SG90, servo_grab);
@@ -128,7 +128,7 @@ void grab_plate(uint8_t id, uint8_t mod) {
     HAL_Delay(300);
     servo_set_angle(SERVO_SG90, servo_place);
     servo_set_angle(SERVO_XH270, grab13_2servo);
-    HAL_Delay(500);
+    HAL_Delay(200);
     servo_set_angle_quk(SERVO_XH360, plate_thr);
     HAL_Delay(700);
     servo_set_angle(SERVO_SG90, servo_grab);
@@ -300,7 +300,7 @@ bool to_material(CAT_Color_t color) {
   servo_set_angle(SERVO_XH360, yolo_3servo);
   HAL_Delay(300);
   servo_set_angle(SERVO_XH270, yolo_2servo);
-  send_motor_place_absolute(motor_up, yolo_motor);
+  send_motor_place_absolute(motor_down, yolo_motor_material);
   HAL_Delay(800);
   refresh_lubcat();
   Lub_Cat_send_material(color);

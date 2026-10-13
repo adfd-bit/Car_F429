@@ -16,10 +16,10 @@
 #include <stdbool.h>
 
 #define CAT_data_len 14
-#define Pixel_Width_center 330  // x 320
-#define Pixel_Height_center 240 // y 240
+#define Pixel_Width_center 335  // x 320
+#define Pixel_Height_center 220 // y 240
 #define ErrTol_cat 10.0
-#define ErrTol_cat_material 20.0
+#define ErrTol_cat_material 200.0
 
 /*-------------------------------发送指令给鲁班猫（协议定义）------------------------*/
 #define CAT_FRAME_FIX_LEN 7 /* 帧固定开销：AF FA + LEN + CMD + CS + CF FC */
