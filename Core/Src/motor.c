@@ -196,9 +196,6 @@ bool pid_to_v(float X_target, float Y_target,
   vy = vy > mov_max ? mov_max : vy > mov_min ? vy : mov_min;
   wv = wv > rad_max ? rad_max : wv > rad_min ? wv : rad_min;
 
-  Speed_Conversion(&vx, &vy);
-  control_v(vx, vy, wv);
-
   xki_sum += (X_target - OPS_X);
   yki_sum += (Y_target - OPS_Y);
   ang_sum += (angle_taget - ops_cache);
@@ -211,6 +208,8 @@ bool pid_to_v(float X_target, float Y_target,
   ang_sum = ang_sum > kI_max ? kI_max : ang_sum > KI_min ? ang_sum : KI_min;
 
   if (send_data_state) {
+    Speed_Conversion(&vx, &vy);
+    control_v(vx, vy, wv);
     send_data_state = false;
     TIM1->CNT = 0;
     HAL_TIM_Base_Start_IT(&htim1);
