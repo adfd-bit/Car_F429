@@ -58,7 +58,7 @@ void send_motor_place_absolute(uint8_t dir, uint32_t pulse) { //'0'升，'1'降
   data[1] = 0xFD;
   data[2] = dir;
   data[3] = 0x00;
-  data[4] = 0xC8;
+  data[4] = 0xF0;
   data[5] = 0x00;
   data[6] = pulse >> 24;
   data[7] = pulse >> 16;
@@ -215,11 +215,14 @@ bool pid_to_v(float X_target, float Y_target,
   xki_sum = xki_sum > kI_max ? kI_max : xki_sum > KI_min ? xki_sum : KI_min;
   yki_sum = yki_sum > kI_max ? kI_max : yki_sum > KI_min ? yki_sum : KI_min;
   ang_sum = ang_sum > kI_max ? kI_max : ang_sum > KI_min ? ang_sum : KI_min;
-  if ((HAL_GetTick() - now) < 650 && (abs((int)current_y - Y_target > 500) ||
+  if ((HAL_GetTick() - now) < 300 && (abs((int)current_y - Y_target > 500) ||
                                       abs((int)current_x - X_target) > 500)) {
-    offs_vx = 80 * (sin(-current_r - cos(current_r)));
+    offs_vx = 100 * (sin(-current_r) + cos(current_r));
     offs_vy = 0;
     offs_wv = 0;
+    if ((Y_target - current_y) < -400) {
+      offs_vx = -offs_vx;
+    }
   } else {
     offs_vx = 0;
     offs_vy = 0;

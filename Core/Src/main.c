@@ -20,7 +20,6 @@
 #include "main.h"
 #include "dma.h"
 #include "gpio.h"
-#include "stm32f4xx_hal.h"
 #include "tim.h"
 #include "usart.h"
 
@@ -185,10 +184,10 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
       OPS_X = *(float *)&OPS_redata[14];
       OPS_Y = *(float *)&OPS_redata[18];
       if (posit_state >= 2) {
-        OPS_angle += 1.5;
+        OPS_angle += 1;
       }
       if (posit_state >= 5) {
-        OPS_angle += 3;
+        OPS_angle += 2;
       }
       if (OPS_angle >= 180) {
         OPS_angle = 180;
@@ -480,6 +479,7 @@ int main(void) {
       }
       if (posit_state == 1 && pid_to_path(0, 0, 2, 0)) { // 路径规划
         pid_to_goal(current_x, current_y, 0);
+        pid_to_goal_relative(0, 50, 0);
         AR_Screen_Start();
         HAL_Delay(100);
         AR_screen_stop();
@@ -518,6 +518,7 @@ int main(void) {
         HAL_Delay(50);
         while (1) {
           pid_to_goal(current_x, current_y, current_r);
+          HAL_Delay(50);
           if (arm_state == 0 && to_material_platform(ar_material_order[0])) {
             grab_platform();
             place_plate(3);
@@ -543,6 +544,7 @@ int main(void) {
         pid_to_goal_relative(20, 0, 0);
         pid_to_goal(current_x, current_y, 180);
         if (to_yolo(CAT_YOLO_TWO)) {
+          set_cur_pos(179, 170, 1030);
           to_ring();
           grab_plate(3, 1);
           place_ground(ar_number_order[0]);
@@ -566,13 +568,14 @@ int main(void) {
       if (posit_state == 4 && pid_to_path(0, 2, 2, 4)) { // 放2
         pid_to_goal_relative(0, -30, 0);
         if (to_yolo(CAT_YOLO_TWO)) {
+          set_cur_pos(89, 1070, 1875);
           to_ring();
           grab_plate(3, 1);
-          place_ground(ar_number_order[0]);
+          place_ground_two(ar_number_order[0]);
           grab_plate(2, 1);
-          place_ground(ar_number_order[1]);
+          place_ground_two(ar_number_order[1]);
           grab_plate(1, 0);
-          place_ground(ar_number_order[2]);
+          place_ground_two(ar_number_order[2]);
           arm_free();
           refresh_lubcat();
         }
@@ -611,6 +614,7 @@ int main(void) {
         pid_to_goal_relative(20, 0, 0);
         pid_to_goal(current_x, current_y, 180);
         if (to_yolo(CAT_YOLO_TWO)) {
+          set_cur_pos(177, 180, 1030);
           to_ring();
           grab_plate(3, 1);
           place_ground(ar_number_order[3]);
@@ -644,7 +648,7 @@ int main(void) {
         while (1) {
           pid_to_goal(current_x, current_y, current_r);
           if (to_material(ar_material_order[stack[1]])) {
-
+            set_cur_pos(87, 1070, 1870);
             grab_plate(3, 1);
             place_block(ar_number_order[stack3[0]]);
             grab_plate(2, 1);
@@ -653,13 +657,13 @@ int main(void) {
             }
             place_block(ar_number_order[stack3[1]]);
             if (stack3[2] == 1) {
-              pid_to_goal_relative(-50, 0, 0);
+              pid_to_goal_relative(-70, 0, 0);
               if (to_material(ar_material_order[stack[0]])) {
                 grab_plate(1, 1);
                 place_block(2);
                 arm_free();
                 posit_state = 8;
-                continue;
+                break;
               }
             }
             grab_plate(1, 1);

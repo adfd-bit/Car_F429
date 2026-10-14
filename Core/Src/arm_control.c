@@ -217,6 +217,46 @@ void place_ground(uint8_t id) {
   }
   }
 }
+void place_ground_two(uint8_t id) {
+  switch (id) {
+  case 1: {
+    servo_set_angle(SERVO_XH360, place1_3servo);
+    HAL_Delay(200);
+    servo_set_angle(SERVO_XH270, place1_2servo);
+    send_motor_place_absolute(motor_down, arm_place);
+    HAL_Delay(800);
+    servo_set_angle(SERVO_SG90, servo_place);
+    HAL_Delay(500);
+    // send_motor_place_absolute(motor_up, yolo_motor);
+    // HAL_Delay(800);
+    break;
+  }
+  case 2: {
+    servo_set_angle(SERVO_XH360, yolo_3servo);
+    HAL_Delay(300);
+    servo_set_angle(SERVO_XH270, yolo_2servo);
+    send_motor_place_absolute(motor_down, arm_place);
+    HAL_Delay(800);
+    servo_set_angle(SERVO_SG90, servo_place);
+    HAL_Delay(500);
+    // send_motor_place_absolute(motor_up, yolo_motor);
+    // HAL_Delay(800);
+    break;
+  }
+  case 3: {
+    servo_set_angle(SERVO_XH360, place3_3servo);
+    HAL_Delay(300);
+    servo_set_angle(SERVO_XH270, place3_2servo);
+    send_motor_place_absolute(motor_down, arm_place);
+    HAL_Delay(800);
+    servo_set_angle(SERVO_SG90, servo_place);
+    HAL_Delay(500);
+    // send_motor_place_absolute(motor_up, yolo_motor);
+    // HAL_Delay(800);
+    break;
+  }
+  }
+}
 void place_block(uint8_t id) {
   switch (id) {
   case 1: {
@@ -300,7 +340,7 @@ bool to_material(CAT_Color_t color) {
   servo_set_angle(SERVO_XH360, yolo_3servo);
   HAL_Delay(300);
   servo_set_angle(SERVO_XH270, yolo_2servo);
-  send_motor_place_absolute(motor_down, yolo_motor_material);
+  send_motor_place_absolute(motor_up, yolo_motor_material);
   HAL_Delay(800);
   refresh_lubcat();
   Lub_Cat_send_material(color);
@@ -325,6 +365,7 @@ bool to_material_platform(CAT_Color_t color) {
   refresh_lubcat();
   Lub_Cat_send_material(color);
   refresh_lubcat();
+  motor_stop();
   if (cat_centre_calibrate()) {
     refresh_lubcat();
     HAL_UART_Transmit(&huart1, (uint8_t *)"对齐", sizeof("对齐") - 1,

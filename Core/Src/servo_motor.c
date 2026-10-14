@@ -22,16 +22,16 @@ float oldx_sum = 0;
 float oldy_sum = 0;
 
 void servo_init() {
-  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_1);
 }
 void servo_stop() {
-  // __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, 500);
+  // __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, 500);
   // __HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, 500);
   // __HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_1, 500);
   // HAL_Delay(1);
-  HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_2);
   HAL_TIM_PWM_Stop(&htim9, TIM_CHANNEL_1);
   HAL_TIM_PWM_Stop(&htim12, TIM_CHANNEL_1);
 }
@@ -50,7 +50,7 @@ void servo_set_angle(Servo_ID id, uint16_t angle) {
     if (angle < 5) {
       angle = 5;
     }
-    TIM4->CCR1 = angle_to_pulse(angle, sg90_min, sg90_max);
+    TIM4->CCR2 = angle_to_pulse(angle, sg90_min, sg90_max);
     break;
   case SERVO_XH270:
     if (angle > 125)
@@ -121,7 +121,7 @@ void servo_set_angle_quk(Servo_ID id, uint16_t angle) {
     if (angle < 5) {
       angle = 5;
     }
-    TIM4->CCR1 = angle_to_pulse(angle, sg90_min, sg90_max);
+    TIM4->CCR2 = angle_to_pulse(angle, sg90_min, sg90_max);
     break;
   case SERVO_XH270:
     if (angle > 125)
@@ -192,7 +192,7 @@ void servo_set_angle_pid(Servo_ID id, uint16_t angle) {
     if (angle < 5) {
       angle = 5;
     }
-    TIM4->CCR1 = angle_to_pulse(angle, sg90_min, sg90_max);
+    TIM4->CCR2 = angle_to_pulse(angle, sg90_min, sg90_max);
     break;
   case SERVO_XH270:
     if (angle > 125)

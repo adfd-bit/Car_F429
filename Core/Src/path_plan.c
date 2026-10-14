@@ -49,7 +49,7 @@ void Initreal() {
   nodes[0][0].real_y = 150;
 
   nodes[MAP_MID][0].real_x = 1050;
-  nodes[MAP_MID][0].real_y = 150;
+  nodes[MAP_MID][0].real_y = 200;
 
   nodes[MAP_END][0].real_x = 1900;
   nodes[MAP_END][0].real_y = 200;
@@ -63,11 +63,11 @@ void Initreal() {
   nodes[MAP_MID][MAP_MID].real_x = 1050;
   nodes[MAP_MID][MAP_MID].real_y = 1030;
 
-  nodes[MAP_MID][MAP_END].real_x = 1080;
-  nodes[MAP_MID][MAP_END].real_y = 1870;
+  nodes[MAP_MID][MAP_END].real_x = 1050;
+  nodes[MAP_MID][MAP_END].real_y = 1900;
 
-  nodes[MAP_END][MAP_MID].real_x = 1930;
-  nodes[MAP_END][MAP_MID].real_y = 1030;
+  nodes[MAP_END][MAP_MID].real_x = 1940;
+  nodes[MAP_END][MAP_MID].real_y = 1050;
 
   nodes[MAP_END][MAP_END].real_x = 1900;
   nodes[MAP_END][MAP_END].real_y = 1900;
