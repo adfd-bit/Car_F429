@@ -20,6 +20,7 @@
 #include "main.h"
 #include "dma.h"
 #include "gpio.h"
+#include "stm32f4xx_hal.h"
 #include "tim.h"
 #include "usart.h"
 
@@ -146,11 +147,13 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
   //  没有检测到 AF FA 91 CF FC
   if (huart == &huart4) { // 鲁班猫数据处理
     if (Size == 5) {
+      static uint8_t cat_error_num = 0;
       if (CAT_redata[0] == 0xAF && CAT_redata[1] == 0xFA &&
           CAT_redata[2] == 0x91 && CAT_redata[3] == 0xCF &&
           CAT_redata[4] == 0xFC) {
+        cat_error_num++;
+        catready = false;
       }
-      catready = false;
     }
     if (CAT_redata[0] == 0xAF && CAT_redata[1] == 0xFA &&
         CAT_redata[2] == 0x0B) {
@@ -187,7 +190,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
         OPS_angle += 1;
       }
       if (posit_state >= 5) {
-        OPS_angle += 2;
+        OPS_angle += 2.5;
       }
       if (OPS_angle >= 180) {
         OPS_angle = 180;
@@ -515,9 +518,12 @@ int main(void) {
       if (posit_state == 2 && pid_to_path(2, 0, 4, 2)) { // 1抓
         pid_to_goal(current_x, current_y, 0);
         send_motor_place_absolute(motor_up, arm_ullimit);
+        HAL_Delay(100);
+        motor_stop();
         HAL_Delay(50);
         while (1) {
           pid_to_goal(current_x, current_y, current_r);
+          motor_stop();
           HAL_Delay(50);
           if (arm_state == 0 && to_material_platform(ar_material_order[0])) {
             grab_platform();
@@ -544,7 +550,7 @@ int main(void) {
         pid_to_goal_relative(20, 0, 0);
         pid_to_goal(current_x, current_y, 180);
         if (to_yolo(CAT_YOLO_TWO)) {
-          set_cur_pos(179, 170, 1030);
+          set_cur_pos(179, 170, 1070);
           to_ring();
           grab_plate(3, 1);
           place_ground(ar_number_order[0]);
@@ -568,7 +574,7 @@ int main(void) {
       if (posit_state == 4 && pid_to_path(0, 2, 2, 4)) { // 放2
         pid_to_goal_relative(0, -30, 0);
         if (to_yolo(CAT_YOLO_TWO)) {
-          set_cur_pos(89, 1070, 1875);
+          set_cur_pos(89, 1070, 1920);
           to_ring();
           grab_plate(3, 1);
           place_ground_two(ar_number_order[0]);
@@ -584,7 +590,7 @@ int main(void) {
       if (posit_state == 5 && pid_to_path(2, 4, 4, 2)) { // 2抓
 
         pid_to_goal(current_x, current_y, 0);
-        pid_to_goal_relative(-30, -50, 0);
+        pid_to_goal_relative(-55, -50, 0);
         while (1) {
           pid_to_goal(current_x, current_y, current_r);
           if (arm_state == 0 && to_material_platform(ar_material_order[3])) {
@@ -611,10 +617,10 @@ int main(void) {
       }
       if (posit_state == 6 && pid_to_path(4, 2, 0, 2)) { // 放1
 
-        pid_to_goal_relative(20, 0, 0);
+        pid_to_goal_relative(-65, 0, 0);
         pid_to_goal(current_x, current_y, 180);
         if (to_yolo(CAT_YOLO_TWO)) {
-          set_cur_pos(177, 180, 1030);
+          set_cur_pos(176.5, 180, 1070);
           to_ring();
           grab_plate(3, 1);
           place_ground(ar_number_order[3]);
@@ -648,7 +654,7 @@ int main(void) {
         while (1) {
           pid_to_goal(current_x, current_y, current_r);
           if (to_material(ar_material_order[stack[1]])) {
-            set_cur_pos(87, 1070, 1870);
+            set_cur_pos(86.5, 1070, 1930);
             grab_plate(3, 1);
             place_block(ar_number_order[stack3[0]]);
             grab_plate(2, 1);
@@ -681,7 +687,7 @@ int main(void) {
       }
       if (posit_state == 8 && pid_to_path(2, 4, 0, 0)) {
         posit_state = 9;
-        if (pid_to_goal(-130, 0, 0))
+        if (pid_to_goal(-130, 65, 0))
           posit_state = 0;
         currentState = STATE_STOP;
       } else

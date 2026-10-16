@@ -32,7 +32,7 @@ double offs_wv = 0;
 int motor[4];
 uint32_t now = 0;
 bool Critical_judgment(float x, float y) {
-  if (abs((int)current_x - x) > 130 || abs((int)current_y - y) > 130) {
+  if (abs((int)current_x - x) > 100 || abs((int)current_y - y) > 100) {
     return false;
   }
   return true;
@@ -57,8 +57,8 @@ void send_motor_place_absolute(uint8_t dir, uint32_t pulse) { //'0'升，'1'降
   data[0] = 5;
   data[1] = 0xFD;
   data[2] = dir;
-  data[3] = 0x00;
-  data[4] = 0xF0;
+  data[3] = 0x01;
+  data[4] = 0x40;
   data[5] = 0x00;
   data[6] = pulse >> 24;
   data[7] = pulse >> 16;
@@ -215,11 +215,15 @@ bool pid_to_v(float X_target, float Y_target,
   xki_sum = xki_sum > kI_max ? kI_max : xki_sum > KI_min ? xki_sum : KI_min;
   yki_sum = yki_sum > kI_max ? kI_max : yki_sum > KI_min ? yki_sum : KI_min;
   ang_sum = ang_sum > kI_max ? kI_max : ang_sum > KI_min ? ang_sum : KI_min;
-  if ((HAL_GetTick() - now) < 300 && (abs((int)current_y - Y_target > 500) ||
+  if ((HAL_GetTick() - now) < 340 && (abs((int)current_y - Y_target > 500) ||
                                       abs((int)current_x - X_target) > 500)) {
-    offs_vx = 100 * (sin(-current_r) + cos(current_r));
+
+    offs_vx = 80 * (sin(-current_r) + cos(current_r));
     offs_vy = 0;
     offs_wv = 0;
+    if (current_r == 90) {
+      offs_vx += 40;
+    }
     if ((Y_target - current_y) < -400) {
       offs_vx = -offs_vx;
     }

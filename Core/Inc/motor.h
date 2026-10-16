@@ -22,8 +22,8 @@
 #define ErrTol_r 2.0
 #define kI_max 20000
 #define KI_min -20000
-#define mov_max 320
-#define mov_min -320
+#define mov_max 240
+#define mov_min -240
 #define rad_max 600
 #define rad_min -600
 #define va_max 160
