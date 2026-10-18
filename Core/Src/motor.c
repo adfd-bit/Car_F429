@@ -29,7 +29,7 @@ float vya = 0;
 double offs_vx = 0;
 double offs_vy = 0;
 double offs_wv = 0;
-int motor[4];
+volatile int motor[4];
 uint32_t now = 0;
 bool Critical_judgment(float x, float y) {
   if (abs((int)current_x - x) > 100 || abs((int)current_y - y) > 100) {
@@ -108,10 +108,10 @@ void motor_go() {
 }
 void motor_stop() {
   memset(motor, 0, sizeof(motor));
-  HAL_Delay(30);
+  HAL_Delay(50);
   uint8_t data[5] = {0x00, 0xFE, 0x98, 0x00, 0x6B};
   HAL_UART_Transmit(&huart3, data, sizeof(data), HAL_MAX_DELAY);
-  HAL_Delay(30);
+  HAL_Delay(50);
 }
 void Speed_Conversion(double *vx, double *vy) {
   double ops_rad = (double)OPS_angle * PI / 180.0;

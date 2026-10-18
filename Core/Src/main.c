@@ -190,7 +190,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
         OPS_angle += 1;
       }
       if (posit_state >= 5) {
-        OPS_angle += 2.5;
+        OPS_angle += 1;
       }
       if (OPS_angle >= 180) {
         OPS_angle = 180;
@@ -517,14 +517,14 @@ int main(void) {
       }
       if (posit_state == 2 && pid_to_path(2, 0, 4, 2)) { // 1抓
         pid_to_goal(current_x, current_y, 0);
-        send_motor_place_absolute(motor_up, arm_ullimit);
         HAL_Delay(100);
         motor_stop();
-        HAL_Delay(50);
+        HAL_Delay(100);
         while (1) {
           pid_to_goal(current_x, current_y, current_r);
+          HAL_Delay(100);
           motor_stop();
-          HAL_Delay(50);
+          HAL_Delay(100);
           if (arm_state == 0 && to_material_platform(ar_material_order[0])) {
             grab_platform();
             place_plate(3);
@@ -620,7 +620,7 @@ int main(void) {
         pid_to_goal_relative(-65, 0, 0);
         pid_to_goal(current_x, current_y, 180);
         if (to_yolo(CAT_YOLO_TWO)) {
-          set_cur_pos(176.5, 180, 1070);
+          set_cur_pos(178, 180, 1070);
           to_ring();
           grab_plate(3, 1);
           place_ground(ar_number_order[3]);
@@ -654,7 +654,7 @@ int main(void) {
         while (1) {
           pid_to_goal(current_x, current_y, current_r);
           if (to_material(ar_material_order[stack[1]])) {
-            set_cur_pos(86.5, 1070, 1930);
+            set_cur_pos(88, 1070, 1930);
             grab_plate(3, 1);
             place_block(ar_number_order[stack3[0]]);
             grab_plate(2, 1);

@@ -26,7 +26,7 @@
 #define place_stack 0   // 机械臂叠放位置
 
 #define servo_place 5 // 爪子松
-#define servo_grab 60 // 爪子紧
+#define servo_grab 63 // 爪子紧
 
 #define yolo_2servo 40          // yolo2 2舵机位置
 #define yolo_3servo 277         //  yolo2 3舵机位置
@@ -38,16 +38,16 @@
 #define plate_two 90  // 2号盘位置
 #define plate_thr 58  // 3号盘位置
 
-#define place1_3servo 320   // 放1号3舵机位置
-#define place1_2servo 122   // 放1号2舵机位置
-#define place3_3servo 229   // 放3号3舵机位置
-#define place3_2servo 87    // 放3号2舵机位置
+#define place1_3servo 318   // 放1号3舵机位置
+#define place1_2servo 123   // 放1号2舵机位置
+#define place3_3servo 228   // 放3号3舵机位置
+#define place3_2servo 85    // 放3号2舵机位置
 #define grab_save_2servo 20 // 抓取安全位置
 
 #define grab_platform_motor 145 // 抓工作台物料
 #define grab2_2servo 82         // 抓2盘中物料
 #define grab13_2servo 73        // 抓13盘中物料
-#define grab_motor 215          // 抓取物料电机位置
+#define grab_motor 205          // 抓取物料电机位置
 
 extern uint8_t ar_material_order[6];
 extern uint8_t ar_number_order[6];

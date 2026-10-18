@@ -13,11 +13,11 @@
 #include <stdint.h>
 #include <sys/types.h>
 void arm_free() {
-  send_motor_place_absolute(motor_up, arm_ullimit);
+  send_motor_place_absolute(motor_up, 250);
   servo_set_angle(SERVO_SG90, servo_place);
   HAL_Delay(500);
-  servo_set_angle(SERVO_XH270, grab2_2servo);
-  servo_set_angle(SERVO_XH360, plate_two);
+  servo_set_angle_quk(SERVO_XH270, grab2_2servo);
+  servo_set_angle_quk(SERVO_XH360, plate_two);
   HAL_Delay(500);
 }
 void grab_platform() {
@@ -348,6 +348,8 @@ bool to_material(CAT_Color_t color) {
 }
 bool to_material_platform(CAT_Color_t color) {
   motor_stop();
+  send_motor_place_absolute(motor_up, arm_ullimit);
+  HAL_Delay(100);
   servo_set_angle(SERVO_SG90, servo_place);
   servo_set_angle_quk(SERVO_XH360, yolo_3servo);
   HAL_Delay(300);
