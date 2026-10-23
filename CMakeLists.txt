@@ -56,6 +56,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/arm_control.c
     Core/Inc/cy_z.h
     Core/Src/cy_z.c
+    Core/Inc/ldrobot_stl.h
+    Core/Src/ldrobot_stl.c
 
 )
 

@@ -24,13 +24,13 @@ void grab_platform() {
   send_motor_place_absolute(motor_up, grab_platform_motor);
   HAL_Delay(200);
   servo_set_angle(SERVO_SG90, servo_grab);
-  HAL_Delay(500);
+  HAL_Delay(300);
   send_motor_place_absolute(motor_up, arm_ullimit);
-  HAL_Delay(600);
+  HAL_Delay(300);
 }
 void grab_ground() {
   send_motor_place_absolute(motor_up, yolo_motor);
-  HAL_Delay(500);
+  HAL_Delay(300);
   servo_set_angle(SERVO_SG90, servo_place);
   servo_set_angle_quk(SERVO_XH360, yolo_3servo);
   HAL_Delay(1000);
@@ -47,11 +47,11 @@ void grab_ground_id(uint8_t id) {
     servo_set_angle(SERVO_SG90, servo_place);
     servo_set_angle_quk(SERVO_XH360, place1_3servo);
     servo_set_angle(SERVO_XH270, place1_2servo);
-    HAL_Delay(600);
+    HAL_Delay(300);
     send_motor_place_absolute(motor_down, arm_dwlimit);
-    HAL_Delay(500);
+    HAL_Delay(300);
     servo_set_angle(SERVO_SG90, servo_grab);
-    HAL_Delay(800);
+    HAL_Delay(500);
     send_motor_place_absolute(motor_up, arm_ullimit);
     HAL_Delay(400);
     break;
@@ -60,11 +60,11 @@ void grab_ground_id(uint8_t id) {
     servo_set_angle(SERVO_SG90, servo_place);
     servo_set_angle_quk(SERVO_XH360, yolo_3servo);
     servo_set_angle(SERVO_XH270, yolo_2servo);
-    HAL_Delay(600);
+    HAL_Delay(300);
     send_motor_place_absolute(motor_down, arm_dwlimit);
-    HAL_Delay(500);
+    HAL_Delay(300);
     servo_set_angle(SERVO_SG90, servo_grab);
-    HAL_Delay(800);
+    HAL_Delay(500);
     send_motor_place_absolute(motor_up, arm_ullimit);
     HAL_Delay(400);
     break;
@@ -73,11 +73,11 @@ void grab_ground_id(uint8_t id) {
     servo_set_angle(SERVO_SG90, servo_place);
     servo_set_angle_quk(SERVO_XH360, place3_3servo);
     servo_set_angle(SERVO_XH270, place3_2servo);
-    HAL_Delay(600);
+    HAL_Delay(300);
     send_motor_place_absolute(motor_down, arm_dwlimit);
-    HAL_Delay(500);
+    HAL_Delay(300);
     servo_set_angle(SERVO_SG90, servo_grab);
-    HAL_Delay(800);
+    HAL_Delay(500);
     send_motor_place_absolute(motor_up, arm_ullimit);
     HAL_Delay(400);
     break;
@@ -96,7 +96,7 @@ void grab_plate(uint8_t id, uint8_t mod) {
     servo_set_angle(SERVO_SG90, servo_grab);
     HAL_Delay(500);
     send_motor_place_absolute(motor_up, arm_ullimit);
-    HAL_Delay(300);
+    HAL_Delay(200);
     if (mod == servo2_savemod) {
       servo_set_angle(SERVO_XH270, grab_save_2servo);
       HAL_Delay(300);
@@ -110,11 +110,11 @@ void grab_plate(uint8_t id, uint8_t mod) {
     servo_set_angle(SERVO_SG90, servo_place);
     servo_set_angle(SERVO_XH270, grab2_2servo);
     servo_set_angle_quk(SERVO_XH360, plate_two);
-    HAL_Delay(700);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_grab);
     HAL_Delay(500);
     send_motor_place_absolute(motor_up, arm_ullimit);
-    HAL_Delay(300);
+    HAL_Delay(200);
     if (mod == servo2_savemod) {
       servo_set_angle(SERVO_XH270, grab_save_2servo);
       HAL_Delay(300);
@@ -127,11 +127,11 @@ void grab_plate(uint8_t id, uint8_t mod) {
     servo_set_angle(SERVO_SG90, servo_place);
     servo_set_angle(SERVO_XH270, grab13_2servo);
     servo_set_angle_quk(SERVO_XH360, plate_thr);
-    HAL_Delay(700);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_grab);
     HAL_Delay(500);
     send_motor_place_absolute(motor_up, arm_ullimit);
-    HAL_Delay(300);
+    HAL_Delay(200);
     if (mod == servo2_savemod) {
       servo_set_angle(SERVO_XH270, grab_save_2servo);
       HAL_Delay(300);
@@ -145,31 +145,31 @@ void place_plate(uint8_t id) {
   case 1: {
     servo_set_angle(SERVO_XH270, grab13_2servo);
     servo_set_angle(SERVO_XH360, plate_one);
-    HAL_Delay(350);
+    HAL_Delay(250);
     // send_motor_place_absolute(motor_up, 290);
     // HAL_Delay(1000);
     servo_set_angle(SERVO_SG90, servo_place);
-    HAL_Delay(300);
+    HAL_Delay(200);
     break;
   }
   case 2: {
     servo_set_angle(SERVO_XH270, grab2_2servo);
     servo_set_angle(SERVO_XH360, plate_two);
-    HAL_Delay(350);
+    HAL_Delay(250);
     // send_motor_place_absolute(motor_up, 290);
     // HAL_Delay(1000);
     servo_set_angle(SERVO_SG90, servo_place);
-    HAL_Delay(300);
+    HAL_Delay(200);
     break;
   }
   case 3: {
     servo_set_angle(SERVO_XH270, grab13_2servo);
     servo_set_angle(SERVO_XH360, plate_thr);
-    HAL_Delay(350);
+    HAL_Delay(300);
     // send_motor_place_absolute(motor_up, 290);
     // HAL_Delay(1000);
     servo_set_angle(SERVO_SG90, servo_place);
-    HAL_Delay(300);
+    HAL_Delay(200);
     break;
   }
   }
@@ -180,7 +180,7 @@ void place_ground(uint8_t id) {
     servo_set_angle(SERVO_XH360, place1_3servo);
     servo_set_angle(SERVO_XH270, place1_2servo);
     send_motor_place_absolute(motor_down, arm_place);
-    HAL_Delay(800);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_place);
     HAL_Delay(500);
     // send_motor_place_absolute(motor_up, yolo_motor);
@@ -191,7 +191,7 @@ void place_ground(uint8_t id) {
     servo_set_angle(SERVO_XH360, yolo_3servo);
     servo_set_angle(SERVO_XH270, yolo_2servo);
     send_motor_place_absolute(motor_down, arm_place);
-    HAL_Delay(800);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_place);
     HAL_Delay(500);
     // send_motor_place_absolute(motor_up, yolo_motor);
@@ -202,7 +202,7 @@ void place_ground(uint8_t id) {
     servo_set_angle(SERVO_XH360, place3_3servo);
     servo_set_angle(SERVO_XH270, place3_2servo);
     send_motor_place_absolute(motor_down, arm_place);
-    HAL_Delay(800);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_place);
     HAL_Delay(500);
     // send_motor_place_absolute(motor_up, yolo_motor);
@@ -218,7 +218,7 @@ void place_ground_two(uint8_t id) {
     HAL_Delay(200);
     servo_set_angle(SERVO_XH270, place1_2servo);
     send_motor_place_absolute(motor_down, arm_place);
-    HAL_Delay(800);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_place);
     HAL_Delay(500);
     // send_motor_place_absolute(motor_up, yolo_motor);
@@ -230,7 +230,7 @@ void place_ground_two(uint8_t id) {
     HAL_Delay(300);
     servo_set_angle(SERVO_XH270, yolo_2servo);
     send_motor_place_absolute(motor_down, arm_place);
-    HAL_Delay(800);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_place);
     HAL_Delay(500);
     // send_motor_place_absolute(motor_up, yolo_motor);
@@ -242,7 +242,7 @@ void place_ground_two(uint8_t id) {
     HAL_Delay(300);
     servo_set_angle(SERVO_XH270, place3_2servo);
     send_motor_place_absolute(motor_down, arm_place);
-    HAL_Delay(800);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_place);
     HAL_Delay(500);
     // send_motor_place_absolute(motor_up, yolo_motor);
@@ -258,7 +258,7 @@ void place_block(uint8_t id) {
     HAL_Delay(500);
     servo_set_angle(SERVO_XH270, place1_2servo);
     send_motor_place_absolute(motor_down, place_stack);
-    HAL_Delay(800);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_place);
     HAL_Delay(500);
     // send_motor_place_absolute(motor_up, yolo_motor);
@@ -271,7 +271,7 @@ void place_block(uint8_t id) {
     HAL_Delay(500);
     servo_set_angle(SERVO_XH270, yolo_2servo);
     send_motor_place_absolute(motor_down, place_stack);
-    HAL_Delay(800);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_place);
     HAL_Delay(500);
     // send_motor_place_absolute(motor_up, yolo_motor);
@@ -286,7 +286,7 @@ void place_block(uint8_t id) {
     HAL_Delay(500);
     servo_set_angle(SERVO_XH270, place3_2servo);
     send_motor_place_absolute(motor_down, place_stack);
-    HAL_Delay(800);
+    HAL_Delay(500);
     servo_set_angle(SERVO_SG90, servo_place);
     HAL_Delay(500);
     // send_motor_place_absolute(motor_up, yolo_motor);
@@ -352,7 +352,6 @@ bool to_material_platform(CAT_Color_t color) {
   HAL_Delay(100);
   servo_set_angle(SERVO_SG90, servo_place);
   servo_set_angle_quk(SERVO_XH360, yolo_3servo);
-  HAL_Delay(300);
   servo_set_angle(SERVO_XH270, yolo_platform_2servo);
   send_motor_place_absolute(motor_up, arm_ullimit);
   refresh_lubcat();

@@ -21,6 +21,7 @@
 #include "dma.h"
 #include "gpio.h"
 #include "stm32f4xx_hal.h"
+#include "stm32f4xx_hal_uart.h"
 #include "tim.h"
 #include "usart.h"
 
@@ -30,6 +31,7 @@
 #include "ar_screen.h"
 #include "arm_control.h"
 #include "cy_z.h"
+#include "ldrobot_stl.h"
 #include "lub_cat.h"
 #include "math.h"
 #include "motor.h"
@@ -107,6 +109,10 @@ volatile bool ar_screen_sta =
     false; /* true = AR_Screen 接收数据完成标志，主循环用 */
 volatile bool cyz_state = false;
 SystemState_t currentState = STATE_INIT;
+/* 可删：雷达障碍物只投影一次的一次性标志。
+ * 进 STATE_NAV 那一刻车还静止，位姿最准；画完就冻结，之后不再重投影
+ * （否则车开出去后还会用新位姿去套起步时的旧读数，障碍物整体平移）。 */
+static bool radar_painted = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -229,6 +235,8 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
     car_debug_state = true;
     car_debug_dalen = Size;
     HAL_UARTEx_ReceiveToIdle_IT(&huart1, car_debug, 13);
+  } else if (huart == &huart6) { // 乐动 STL-06N 激光雷达
+    ldrobot_stl_rx_event_callback(huart, Size);
   }
 }
 /*-------------------------------------串口外设---------------------------------*/
@@ -269,6 +277,9 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
 
     // 重启串口接收（此时 HAL 已将 RxState 置为 READY，可安全重装）
     ops9_receive_start();
+  }
+  if (huart == &huart6) { // 乐动 STL-06N 激光雷达
+    ldrobot_stl_rx_error_callback(huart);
   }
 }
 /* USER CODE END 0 */
@@ -324,6 +335,7 @@ int main(void) {
   motor_en();                                            // 电机使能
   ops9_receive_start(); /* 启动 OPS9 接收 DMA */
   Lub_Cat_receive_start();
+  ldrobot_stl_init(); /* 启动 STL-06N 激光雷达 USART6 接收 */
   //--------------------------------调试----------------------------------
   //	HAL_UART_Receive_IT(&huart1, pathl, sizeof(pathl));//路径规划
   //	HAL_UART_Receive_IT(&huart1, &receive, 1);
@@ -332,7 +344,12 @@ int main(void) {
   // uint8_t stack2[3]; // 抓取相应位置的物块
   uint8_t stack3[3];
   // cyz_receive_start();
-  // HAL_TIM_Base_Start_IT(&htim3); // OPS9启动
+  /* 起 TIM3：PSC=1799 / ARR=49999，APB1 定时器时钟 90MHz
+   *   → 90M / 1800 / 50000 = 1Hz，1 秒一次中断。
+   * 回调里数到 14 次（a > 13）才转 STATE_NAV —— 所以实际是 14 秒。
+   * 这 14 秒主循环在 STATE_INIT 空转，只跑 ldrobot_stl_process() 收雷达，
+   * 等 OPS9 起来。这就是"先扫 14 秒，再导航"。 */
+  HAL_TIM_Base_Start_IT(&htim3); // OPS9启动
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -473,9 +490,18 @@ int main(void) {
 
     //-----------------状态机------------------------
     switch (currentState) { // 初始化，
-    case STATE_INIT:
+    case STATE_INIT: {
+      ldrobot_stl_process();
       continue;
+    }
+
     case STATE_NAV: {
+      if (!radar_painted) { /* 只在跳变那一瞬间画一次：此刻车还没动，
+                             * 静止位姿投影最准。之后冻结。 */
+        radar_painted = true;
+        uint8_t count = PathPlan_UpdateFromRadar() + 48;
+        HAL_UART_Transmit(&huart1, &count, 1, 100);
+      }
       HAL_UART_Transmit(&huart5, cyz_clear, 8, HAL_MAX_DELAY);
       if (posit_state == 0 && pid_to_goal(200, 200, 0)) {
         posit_state = 1;
@@ -699,6 +725,12 @@ int main(void) {
       // 注意删除
       HAL_UART_Transmit(&huart1, (uint8_t *)"over", sizeof("over") - 1,
                         HAL_MAX_DELAY);
+      /* 必须在这里重开 TIM3。回调里到点会 HAL_TIM_Base_Stop_IT(htim) 把它停掉，
+       * 不重开的话第二轮会卡死在 STATE_INIT 永远进不了 STATE_NAV —— 车看着像
+       * 上电了但一直不动。回调里的计数 a 在停机那一次已经清 0，所以直接 Start
+       * 就是从 0 开始完整数 14 秒。 */
+      radar_painted = false; /* 可删：第二轮进 STATE_NAV 时要重新投影一次 */
+      HAL_TIM_Base_Start_IT(&htim3);
       currentState = STATE_INIT;
       break;
     }
