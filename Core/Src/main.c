@@ -20,8 +20,6 @@
 #include "main.h"
 #include "dma.h"
 #include "gpio.h"
-#include "stm32f4xx_hal.h"
-#include "stm32f4xx_hal_uart.h"
 #include "tim.h"
 #include "usart.h"
 
@@ -85,7 +83,6 @@ uint8_t cyz_redata[16];
 volatile float cyz_angle = 0;
 uint8_t cyz_cmd[8] = {0xA5, 0x5A, 0x01, 0x02, 0x02, 0xF8, 0x91, 0x5A};
 uint8_t cyz_clear[8] = {0xA5, 0x5A, 0x01, 0x01, 0x01, 0x30, 0x00, 0x5A};
-
 /*----------------------------------------------调试变量(可删)----------------------------*/
 uint8_t receive;
 uint8_t pathl[4];
@@ -98,6 +95,7 @@ uint8_t car_debug[13];
 uint8_t car_debug_dalen = 0;
 bool car_debug_state = false;
 char cd[20] = {};
+
 /*-----------------------------------状态变量----------------------------------*/
 uint32_t ALL_time = 0;
 uint8_t posit_state = 0; // 状态机
@@ -109,8 +107,8 @@ volatile bool ar_screen_sta =
     false; /* true = AR_Screen 接收数据完成标志，主循环用 */
 volatile bool cyz_state = false;
 SystemState_t currentState = STATE_INIT;
-/* 可删：雷达障碍物只投影一次的一次性标志。
- * 进 STATE_NAV 那一刻车还静止，位姿最准；画完就冻结，之后不再重投影
+/* 雷达障碍物只投影一次的一次性标志。
+ * 进 STATE_NAV 那一刻车还静止，位姿最准；投影完就冻结，之后不再重建
  * （否则车开出去后还会用新位姿去套起步时的旧读数，障碍物整体平移）。 */
 static bool radar_painted = false;
 /* USER CODE END PV */
@@ -231,40 +229,13 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
     if (Size > 14) {
       ar_screen_sta = true;
     }
-  } else if (huart == &huart1) {
+  } else if (huart == &huart6) { // 乐动 STL-06N 激光雷达
+    ldrobot_stl_rx_event_callback(huart, Size);
+  } else if (huart == &huart1) { // 调试
     car_debug_state = true;
     car_debug_dalen = Size;
     HAL_UARTEx_ReceiveToIdle_IT(&huart1, car_debug, 13);
-  } else if (huart == &huart6) { // 乐动 STL-06N 激光雷达
-    ldrobot_stl_rx_event_callback(huart, Size);
   }
-}
-/*-------------------------------------串口外设---------------------------------*/
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-  // if (huart == &huart1) { // 全局定位
-  //     re_sta = true;
-  //     HAL_UART_Receive_IT(&huart1, hc_os, 17);
-  // }
-
-  // if(huart == &huart1){//路径规划
-  // 	pt_sta = 1;
-  // 	pt[0] = pathl[0]-48;
-  // 	pt[1] = pathl[1]-48;
-  // 	pt[2] = pathl[2]-48;
-  // 	pt[3] = pathl[3]-48;
-  // 	currentState = STATE_NAV;
-  // 	HAL_UART_Receive_IT(&huart1, pathl, sizeof(pathl));//路径规划
-  // }
-
-  // if (huart == &huart1) { // 机械臂调试
-  //   arm_state = true;
-  //   HAL_UART_Receive_IT(&huart1, arm_control_data, 5);
-  // }
-
-  // if (huart == &huart1) { // 鲁班猫
-  //   lubanready = true;
-  //   HAL_UART_Receive_IT(&huart1, lub_cat_re, 4);
-  // }
 }
 /*------------------------------------数据接收错误重启--------------------------------__*/
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
@@ -336,20 +307,23 @@ int main(void) {
   ops9_receive_start(); /* 启动 OPS9 接收 DMA */
   Lub_Cat_receive_start();
   ldrobot_stl_init(); /* 启动 STL-06N 激光雷达 USART6 接收 */
+  /* 雷达上电默认就是 10Hz（3600 度/秒），这里主动下发一次 0xA2 显式设成
+   * 10Hz，万一把转速设低了或者跑偏，这条指令能拉回默认值。 */
+  (void)ldrobot_stl_set_speed(LDR_STL_SCAN_SPEED_DPS);
+  // HAL_TIM_Base_Start_IT(&htim3); // OPS9启动
+  uint8_t stack[3];
+  uint8_t stack3[3];
   //--------------------------------调试----------------------------------
   //	HAL_UART_Receive_IT(&huart1, pathl, sizeof(pathl));//路径规划
   //	HAL_UART_Receive_IT(&huart1, &receive, 1);
   HAL_UARTEx_ReceiveToIdle_IT(&huart1, car_debug, 13); // 整车调试
-  uint8_t stack[3];
-  // uint8_t stack2[3]; // 抓取相应位置的物块
-  uint8_t stack3[3];
-  // cyz_receive_start();
+
   /* 起 TIM3：PSC=1799 / ARR=49999，APB1 定时器时钟 90MHz
    *   → 90M / 1800 / 50000 = 1Hz，1 秒一次中断。
    * 回调里数到 14 次（a > 13）才转 STATE_NAV —— 所以实际是 14 秒。
    * 这 14 秒主循环在 STATE_INIT 空转，只跑 ldrobot_stl_process() 收雷达，
    * 等 OPS9 起来。这就是"先扫 14 秒，再导航"。 */
-  HAL_TIM_Base_Start_IT(&htim3); // OPS9启动
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -358,7 +332,6 @@ int main(void) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    // AR_Screen_Start();
     //-----------------调试------------------------
     if (car_debug_state) {
       car_debug_state = false;
@@ -487,7 +460,6 @@ int main(void) {
         }
       }
     }
-
     //-----------------状态机------------------------
     switch (currentState) { // 初始化，
     case STATE_INIT: {
@@ -499,8 +471,7 @@ int main(void) {
       if (!radar_painted) { /* 只在跳变那一瞬间画一次：此刻车还没动，
                              * 静止位姿投影最准。之后冻结。 */
         radar_painted = true;
-        uint8_t count = PathPlan_UpdateFromRadar() + 48;
-        HAL_UART_Transmit(&huart1, &count, 1, 100);
+        (void)PathPlan_UpdateFromRadar();
       }
       HAL_UART_Transmit(&huart5, cyz_clear, 8, HAL_MAX_DELAY);
       if (posit_state == 0 && pid_to_goal(200, 200, 0)) {
@@ -599,6 +570,7 @@ int main(void) {
       }
       if (posit_state == 4 && pid_to_path(0, 2, 2, 4)) { // 放2
         pid_to_goal_relative(0, -30, 0);
+        pid_to_goal(current_x, current_y, -90);
         if (to_yolo(CAT_YOLO_TWO)) {
           set_cur_pos(89, 1070, 1920);
           to_ring();
@@ -669,14 +641,7 @@ int main(void) {
       if (posit_state == 7 && pid_to_path(0, 2, 2, 4)) {
 
         pid_to_goal_relative(0, -30, 0);
-        if (current_r == -180 || current_r == +180) {
-          pid_to_goal_relative(0, 0, -90);
-        }
-        if (current_r == -90) {
-          pid_to_goal_relative(0, 0, 90);
-          HAL_Delay(500);
-          pid_to_goal_relative(0, 0, 90);
-        }
+        pid_to_goal(current_x, current_y, -90);
         while (1) {
           pid_to_goal(current_x, current_y, current_r);
           if (to_material(ar_material_order[stack[1]])) {
@@ -722,14 +687,11 @@ int main(void) {
     }
     case STATE_STOP: {
       motor_stop();
-      // 注意删除
-      HAL_UART_Transmit(&huart1, (uint8_t *)"over", sizeof("over") - 1,
-                        HAL_MAX_DELAY);
       /* 必须在这里重开 TIM3。回调里到点会 HAL_TIM_Base_Stop_IT(htim) 把它停掉，
        * 不重开的话第二轮会卡死在 STATE_INIT 永远进不了 STATE_NAV —— 车看着像
        * 上电了但一直不动。回调里的计数 a 在停机那一次已经清 0，所以直接 Start
        * 就是从 0 开始完整数 14 秒。 */
-      radar_painted = false; /* 可删：第二轮进 STATE_NAV 时要重新投影一次 */
+      radar_painted = false; /* 第二轮进 STATE_NAV 时要重新投影一次 */
       HAL_TIM_Base_Start_IT(&htim3);
       currentState = STATE_INIT;
       break;

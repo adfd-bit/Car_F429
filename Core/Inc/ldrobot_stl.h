@@ -87,9 +87,17 @@
 
 /* ========================= 2. 识别与滤波参数 ========================= */
 
-/* 测距有效范围(mm)：数据手册标称 0.03~12 m，超出的点按无效/噪点丢弃 */
+/* 测距有效范围(mm)：超出的点按无效/噪点丢弃。
+ *
+ * MAX 从手册标称的 12000 收到 3500 —— 按比赛场地定的：
+ *   场地 2400×2400，5×5 栅格最远一格的格心在车坐标 (1900,1900)，
+ *   距原点 2687mm，加 320mm 标记半径 = 3007mm。
+ *   也就是说超过 3 米的点永远标不进地图，留着只会占满
+ *   LDR_STL_MAX_OBSTACLES(24) 的名额、把场地里的真实障碍物挤掉。
+ * 实测：收之前 n 恒等于 24（满员，全是 3~5.6m 的实验室墙），收之后只剩场地内的。
+ * 换场地或要测更远时改回 12000 即可。 */
 #define LDR_STL_MIN_DISTANCE_MM    30U
-#define LDR_STL_MAX_DISTANCE_MM    12000U
+#define LDR_STL_MAX_DISTANCE_MM    3500U
 
 /* 强度下限：0 表示不过滤；现场噪声大可改成 10~20 试试 */
 #define LDR_STL_MIN_INTENSITY      0U
@@ -109,9 +117,28 @@
  *   4) 把 ENABLE 改成 1。
  * 角度可以跨 0°（例如 START=350, END=20），angle_in_sector() 已处理回绕。
  * MAX_MM 是第二道保险：只屏蔽这么近的点。 */
-#define LDR_STL_BODY_MASK_ENABLE    0      /* 标定完改成 1 */
-#define LDR_STL_BODY_MASK_START_DEG 200.0f /* "左下方"大致在 180°~290°，先占位 */
-#define LDR_STL_BODY_MASK_END_DEG   290.0f
+#define LDR_STL_BODY_MASK_ENABLE    1
+/* 标定依据（雷达 10Hz 稳定，CONFIRM_HITS=1）：
+ *
+ * ⚠ 注意：对外输出的 angle_deg / range_mm 是换算到"小车中心"后的值
+ *   （point_for_angle() 加了 RIGHT=106 / FORWARD=106 的安装偏移），
+ *   而这里的屏蔽用的是雷达自己的原始角度。标定时必须先反算回去：
+ *       x_radar = r*sin(a) - 106
+ *       y_radar = r*cos(a) - 106
+ *       a_radar = atan2(x_radar, y_radar)
+ *
+ * 实测两簇车体回波（反算到雷达系）：
+ *   屏蔽前 a=64.6°/r=158mm/176 点 → 雷达系 r=53.0mm  a=136.1°
+ *   屏蔽后 a=71.8°/r=128mm/ 87 点 → 雷达系 r=67.8mm  a=166.7°
+ * 176 点 × 0.72°/点 ≈ 127° 跨度，以 136.1° 为中心 → 约 72.7°~199.5°。
+ * 0~135° 屏蔽掉之后剩 135~199.5°（64.5° ≈ 90 点），实测剩 87 点，吻合。
+ * 另有 10 点的小簇在雷达系约 61°。所以车体大致占 57°~200°。
+ *
+ * 取 50°~205° 两端各留几度余量。车体把这段激光本来就挡住了，
+ * 屏蔽它不损失任何真实障碍物。
+ * 如果改完还有 ≤600mm 的目标冒出来，把 START 往小、END 往大继续放。 */
+#define LDR_STL_BODY_MASK_START_DEG 50.0f
+#define LDR_STL_BODY_MASK_END_DEG   205.0f
 #define LDR_STL_BODY_MASK_MAX_MM    600U   /* 只屏蔽这个距离以内的点 */
 
 /* 聚类条件：相邻两点同时满足下面两条才认为属于同一个障碍物 */
@@ -119,14 +146,26 @@
 #define LDR_STL_GROUP_DISTANCE_MM      150.0f  /* 两点直线距离 < 150 mm */
 
 /* 一个障碍物至少包含的原始点数：少于该值视为孤立噪点丢弃。
- * 调大→更干净但远处小目标更容易漏；调小→更灵敏但噪点更多 */
-#define LDR_STL_MIN_GROUP_POINTS   3U
+ *
+ * 比赛用的黑色障碍物是 φ50×100mm 的细圆柱，张角很小：
+ *   距离 0.5m → 5.72° | 1.0m → 2.86° | 1.5m → 1.91° | 2.0m → 1.43° | 2.4m → 1.19°
+ * 10Hz 时角分辨率 0.72°/点，2.0m 处只有 2 个点 —— 阈值设 3 的话，
+ * 1.4m 以外的黑色障碍物全都会被当噪点丢掉，等于看不见。
+ *
+ * 改成 2 之后：10Hz 可见到约 2.0m，6Hz（0.43°/点）可见到约 2.8m。
+ * 代价是噪点变多，靠 LDR_STL_CONFIRM_MAX_MISSES 的滞回兜底。 */
+#define LDR_STL_MIN_GROUP_POINTS   2U
 
 /* 单次扫描最多输出多少个障碍物（按距离由近到远保留） */
 #define LDR_STL_MAX_OBSTACLES      24U
 
-/* 超时：超过 500 ms 没有新帧/新一圈，认为雷达掉线，结果立即失效 */
-#define LDR_STL_SCAN_TIMEOUT_MS    500U
+/* 超时：超过这么久没有新帧/新一圈，认为雷达掉线，结果立即失效。
+ *
+ * SCAN_TIMEOUT 必须大于"转一圈的时间"，否则快照会在下一圈到来之前就作废。
+ *   - 雷达正常 10Hz：一圈 100ms，500ms 绰绰有余；
+ *   - 现在实测只有 ~1Hz：一圈约 1000ms，500ms 会导致每圈中间有半秒是无效的。
+ * 等转速恢复正常后，这个值可以改回 500。 */
+#define LDR_STL_SCAN_TIMEOUT_MS    1500U
 #define LDR_STL_FRAME_TIMEOUT_MS   500U
 
 /* ===================== 3. 雷达安装位置（相对小车中心） ===================== */
@@ -149,6 +188,23 @@
 #define LDR_STL_MOUNT_FORWARD_MM   106    /* 雷达旋转中心在 OPS9 参考点前方 106 mm */
 #define LDR_STL_MOUNT_HEADING_DEG  0.0f   /* 顺时针为正，逆时针为负 */
 
+/* 倒装补偿：雷达上下翻转后，旋转方向会反向（顺时针变逆时针），
+ * 此时"雷达报告角"和"真实方位角"是镜像关系，不是简单加 180°：
+ *     θ真实 = LDR_STL_MOUNT_MIRROR_DEG − θ报告
+ *     0   = 正装，不补偿
+ *     360 = 倒装，翻转轴沿车头方向（θ → −θ，最常见的倒装方式）
+ *     180 = 倒装，翻转轴沿车宽方向（雷达前端朝后）
+ *
+ * 定 K 的依据（实测车体回波在报告角 57°~200°，雷达装在车的右前方，
+ * 所以车体真实方位应在左后方 160°~300°）：
+ *     360 − 200 = 160 ✓      360 − 57 = 303 ≈ 300 ✓
+ * 建议再用一个已知方向的障碍物验证一次：
+ *     真实 315°（左前 1m）→ 补偿后应读到 a≈315，补偿前是 a≈45。
+ *
+ * ⚠ 只影响坐标换算，不影响车体屏蔽：屏蔽用的是 point_for_angle()
+ *   之前的雷达原始角度，标定值 50~205° 与正装/倒装无关，不要动。 */
+#define LDR_STL_MOUNT_MIRROR_DEG   360.0f
+
 /* ========================= 4. 时域滤波参数 ========================= */
 
 /* 1 = 开启跨圈指数平滑（推荐，坐标更稳）；0 = 关闭，输出每圈原始结果 */
@@ -169,7 +225,7 @@
  * ldrobot_stl_get_confirmed_obstacles() 输出。
  * 设为 1 表示新目标第一圈就确认（仍保留 MAX_MISSES 的丢失滞回）。
  * 10 Hz 扫描时，3 圈约 0.3 秒即可确认一个稳定目标。 */
-#define LDR_STL_CONFIRM_HITS            3U
+#define LDR_STL_CONFIRM_HITS            1U
 
 /* 确认跟踪表容量：允许"候选目标"和"已确认目标"同时存在。
  * 比 LDR_STL_MAX_OBSTACLES 略大，避免候选目标把已确认目标挤掉。 */
@@ -287,5 +343,39 @@ bool ldrobot_stl_is_valid(void);
 /* 诊断计数：累计校验通过 / 失败的帧数，可用于判断接线和波特率是否正确 */
 uint32_t ldrobot_stl_valid_frames(void);
 uint32_t ldrobot_stl_bad_frames(void);
+
+/* ==================== 串口控制指令（开发手册 2.2 节） ====================
+ * 指令帧：0x54 | Mode | 0x04 | Data[4] | CRC8，共 8 字节。
+ * 雷达每次都会回一条同格式的 ACK（混在测距数据流里）。
+ * 转速范围只有 2160~4680 度/秒（6~13Hz），设不了更慢的转速。 */
+
+/* 启动电机（Mode=0xA0）。上电默认就是转的，一般不需要调。 */
+bool ldrobot_stl_cmd_start(void);
+
+/* 停止电机（Mode=0xA1）。停转后不再输出测距帧，500ms 后扫描结果自动失效。 */
+bool ldrobot_stl_cmd_stop(void);
+
+/* 设置目标转速（Mode=0xA2），单位度/秒。
+ * 合法范围 2160~4680（6~13Hz）；超出范围直接返回 false，雷达也不响应。
+ * 掉电丢失，重新上电回到默认 10Hz。 */
+bool ldrobot_stl_set_speed(uint16_t deg_per_s);
+
+/* 查询目标转速（Mode=0xA3）。ACK 目前不单独解析。 */
+bool ldrobot_stl_query_speed(void);
+
+#define LDR_STL_SPEED_6HZ_DPS   2160U  /* 6Hz  */
+#define LDR_STL_SPEED_10HZ_DPS  3600U  /* 10Hz，上电默认 */
+#define LDR_STL_SPEED_13HZ_DPS  4680U  /* 13Hz */
+
+/* 开机时下发的目标转速（main.c 里调用 ldrobot_stl_set_speed()）。
+ *
+ * 测距频率固定 5000 点/秒，所以转得越慢，角分辨率越细：
+ *   10Hz → 500 点/圈 → 0.72°/点（数据手册标称值）
+ *    6Hz → 833 点/圈 → 0.43°/点   ← 角分辨率提高 1.67 倍
+ *
+ * 原地静止扫描时不关心刷新率，用 6Hz 能让 φ50mm 的小障碍物多出近一倍的点，
+ * 更容易通过 MIN_GROUP_POINTS 的聚类门限。
+ * 等要跑动避障、需要更快刷新时，改回 LDR_STL_SPEED_10HZ_DPS。 */
+#define LDR_STL_SCAN_SPEED_DPS  LDR_STL_SPEED_6HZ_DPS
 
 #endif /* LDROBOT_STL_H */

@@ -210,16 +210,7 @@ bool pid_to_cat(float angle_taget) {
   }
 }
 bool cat_centre_calibrate() {
-  // char c[40];
   while (1) {
-    // 注意删除
-    // if (HAL_GetTick() - ALL_time > 100) {
-    //   int len = sprintf(c, "%d,%d,%f\n", CAT_x, CAT_y, OPS_angle);
-    //   HAL_UART_Transmit(&huart5, (uint8_t *)c, len, HAL_MAX_DELAY);
-    //   ALL_time = HAL_GetTick();
-    // }
-
-    // HAL_UART_Transmit(&huart5, (uint8_t *)c, sizeof(c), HAL_MAX_DELAY);
     if (!Critical_judgment(OPS_X, OPS_Y)) {
       return false;
     }
@@ -331,13 +322,6 @@ bool cat_centre_calibrate_material() {
   while (1) {
     if (!Critical_judgment(OPS_X, OPS_Y)) {
       return false;
-    }
-    // 注意删除
-    char c[40];
-    if (HAL_GetTick() - ALL_time > 100) {
-      int len = sprintf(c, "%d,%d\n", (int)CAT_x, (int)CAT_y);
-      HAL_UART_Transmit(&huart1, (uint8_t *)c, len, HAL_MAX_DELAY);
-      ALL_time = HAL_GetTick();
     }
     if (pid_to_cat_material(current_r)) {
       motor_stop();

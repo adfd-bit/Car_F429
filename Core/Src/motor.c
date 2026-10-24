@@ -222,7 +222,7 @@ bool pid_to_v(float X_target, float Y_target,
     offs_vy = 0;
     offs_wv = 0;
     if (current_r == 90) {
-      offs_vx += 40;
+      offs_vx += 60;
     }
     if ((Y_target - current_y) < -400) {
       offs_vx = -offs_vx;
@@ -266,6 +266,47 @@ bool pid_to_v(float X_target, float Y_target,
     return false;
   }
 }
+/* 原地掉头时分两段转：先转到"目标角 − 90°"，停一下，再转完剩下的 90°。
+ *
+ * 为什么：一次转 180° 时车头要直接翻过去，四轮合力矩在起步瞬间整个反向，
+ * 轮子容易打滑；转到位时角速度还很大，超调也大，OPS9 有时会跟丢。
+ * 拆成两次 90° 后每一段都从静止重新起转，误差只收敛 90°，稳得多
+ * （main.c 里 posit_state 7 原本就是手动这么写两段的）。
+ *
+ * 只在"原地自旋"时拆：XY 目标离当前位置超过 SPLIT_180_POS_TOL_MM 就不动，
+ * 避免把"边走边转"的路径动作拆散。
+ * 返回 true 表示已经拆成两段执行完毕。 */
+static bool pid_turn_split_180(float X_target, float Y_target,
+                               float angle_taget) {
+  float dx = X_target - OPS_X;
+  float dy = Y_target - OPS_Y;
+  float err = ang_diff(angle_taget, OPS_angle);
+  float mid;
+
+  if (dx * dx + dy * dy >
+      SPLIT_180_POS_TOL_MM * SPLIT_180_POS_TOL_MM) {
+    return false; /* 不是原地，不拆 */
+  }
+  if (fabsf(err) < SPLIT_180_ERR_DEG) {
+    return false; /* 没到掉头量，不拆 */
+  }
+
+  /* 就近分段：err 为正就先往正方向转 90°，否则先往负方向转 90° */
+  mid = angle_taget - ((err > 0.0f) ? 90.0f : -90.0f);
+  while (mid > 180.0f) {
+    mid -= 360.0f;
+  }
+  while (mid < -180.0f) {
+    mid += 360.0f;
+  }
+
+  if (!pid_to_goal(X_target, Y_target, mid)) {
+    return false;
+  }
+  HAL_Delay(SPLIT_180_PAUSE_MS);
+  return pid_to_goal(X_target, Y_target, angle_taget);
+}
+
 bool pid_to_goal(float X_target, float Y_target,
                  float angle_taget) { // 绝对坐标 单位mm
                                       // char c[40];
@@ -281,16 +322,20 @@ bool pid_to_goal(float X_target, float Y_target,
       angle_taget = -90;
     }
   }
+  /* 掉头拆两段：只在最外层拆一次，拆完的两次 90° 调用不会再进来。 */
+  static uint8_t split_depth = 0U;
+  if (split_depth == 0U) {
+    bool split;
+    split_depth = 1U;
+    split = pid_turn_split_180(X_target, Y_target, angle_taget);
+    split_depth = 0U;
+    if (split) {
+      return true;
+    }
+  }
+
   now = HAL_GetTick();
   while (1) {
-    //		注意删除
-    // char c[40];
-    // if (HAL_GetTick() - ALL_time > 100) {
-    //   int len = sprintf(c, "%f,%f,%f\n", OPS_X, OPS_Y, OPS_angle);
-    //   HAL_UART_Transmit(&huart1, (uint8_t *)c, len, HAL_MAX_DELAY);
-    //   ALL_time = HAL_GetTick();
-    // }
-
     if (pid_to_v(X_target, Y_target, angle_taget)) {
       motor_stop();
       return true;
@@ -329,13 +374,6 @@ bool pid_to_path(int sta_x, int sta_y, int goal_x,
     }
     state = false;
     while (!state) {
-      // 注意删除
-      // char c[40];
-      // if (HAL_GetTick() - ALL_time > 100) {
-      //   int len = sprintf(c, "%f,%f,%f\n", OPS_X, OPS_Y, OPS_angle);
-      //   HAL_UART_Transmit(&huart1, (uint8_t *)c, len, HAL_MAX_DELAY);
-      //   ALL_time = HAL_GetTick();
-      // }
       if (!Critical_judgment(OPS_X, OPS_Y)) {
         return false;
       }
@@ -383,18 +421,8 @@ static float nb_old = 0;        // 上一段的角度（用于 180° 修正）
 static float nb_angle = 0;      // 当前段的角度
 static int nb_sta_x, nb_sta_y, nb_goal_x, nb_goal_y; // 记录本次任务参数
 
-static void nb_debug_send(void){// 原阻塞循环里的 100ms 调试输出（注意删除）
-        char c[40];
-        if(HAL_GetTick() - ALL_time > 100){
-                int len = sprintf(c,"%f,%f,%f\n",OPS_X,OPS_Y,OPS_angle);
-                HAL_UART_Transmit(&huart1, (uint8_t*)c, len, HAL_MAX_DELAY);
-                ALL_time = HAL_GetTick();
-        }
-}
-
 bool pid_to_goal_nb(float X_target,float Y_target,float angle_taget){
         // 阻塞版就是 while(1){ pid_to_v() }，非阻塞版每次调用只推进一步
-        nb_debug_send();
         return pid_to_v(X_target, Y_target, angle_taget);
 }
 
@@ -407,8 +435,6 @@ Astar路径规划 非阻塞版
                 nb_goal_x = goal_x; nb_goal_y = goal_y;
                 nb_state = NB_IDLE;
         }
-        nb_debug_send();        // 与原阻塞循环相同的调试输出（注意删除）
-
         switch(nb_state){
         case NB_IDLE:
                 if(!Find_path(sta_x, sta_y, goal_x, goal_y))

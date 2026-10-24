@@ -237,7 +237,16 @@ static bool ring_pop(uint8_t *byte)
 static scan_point_t point_for_angle(float angle, uint16_t distance)
 {
     scan_point_t point;
-    float radians = (angle + LDR_STL_MOUNT_HEADING_DEG) * LDR_STL_DEG2RAD;
+
+    /* 真实方位角：正装时就是雷达报告角；倒装时做镜像（见头文件
+     * LDR_STL_MOUNT_MIRROR_DEG）。只在换算坐标时用，point.angle 仍保留
+     * 原始角度 —— 聚类连续性和跨 0° 接缝判断都基于原始角度，不受影响。 */
+    float real_angle = angle;
+    if (LDR_STL_MOUNT_MIRROR_DEG > 0.0f) { /* 常量条件，编译器会直接折叠 */
+        real_angle = normalize_deg(LDR_STL_MOUNT_MIRROR_DEG - angle);
+    }
+
+    float radians = (real_angle + LDR_STL_MOUNT_HEADING_DEG) * LDR_STL_DEG2RAD;
 
     point.x = (float)distance * sinf(radians) + (float)LDR_STL_MOUNT_RIGHT_MM;
     point.y = (float)distance * cosf(radians) + (float)LDR_STL_MOUNT_FORWARD_MM;
@@ -995,4 +1004,83 @@ uint32_t ldrobot_stl_valid_frames(void)
 uint32_t ldrobot_stl_bad_frames(void)
 {
     return bad_frames;
+}
+
+/* ==================== 7. 串口控制指令（开发手册 2.2 节） ====================
+ *
+ * 指令帧固定 8 字节：0x54 | Mode | 0x04 | Data[4] | CRC8
+ * CRC8 覆盖前 7 字节，算法与测距帧完全相同（沿用 ldr_crc8）。
+ *
+ *   Mode  功能                       Data
+ *   0xA0  启动电机                   无意义，填 0
+ *   0xA1  停止电机                   无意义，填 0
+ *   0xA2  设置目标转速（掉电丢失）   目标转速，单位：度/秒
+ *   0xA3  查询目标转速               无意义，填 0
+ *
+ * 转速范围：2160~4680 度/秒（6~13Hz），超出范围雷达不响应、保持原速。
+ * 上电默认内部控速 10Hz（3600 度/秒）。
+ *
+ * 注意：雷达回 ACK 时会往同一根 RX 线上塞 8 字节，其中也以 0x54 开头，
+ * 会干扰正在组帧的解析器（最多丢一帧，之后自动重新同步），属正常现象。
+ * -------------------------------------------------------------------------- */
+
+#define LDR_STL_CMD_LEN         8U     /* 指令帧总长度 */
+#define LDR_STL_CMD_DATA_LEN    0x04U  /* 帧内"数据长度"字段固定值 */
+#define LDR_STL_CMD_START       0xA0U
+#define LDR_STL_CMD_STOP        0xA1U
+#define LDR_STL_CMD_SET_SPEED   0xA2U
+#define LDR_STL_CMD_QUERY_SPEED 0xA3U
+
+#define LDR_STL_SPEED_MIN_DPS   2160U  /* 6Hz，雷达接受的下限 */
+#define LDR_STL_SPEED_MAX_DPS   4680U  /* 13Hz，雷达接受的上限 */
+#define LDR_STL_SPEED_10HZ_DPS  3600U  /* 10Hz，上电默认转速 */
+
+/* 组一帧指令并通过 USART6 发出。
+ * huart6 是 TX+RX 双向模式，中断接收只占用 RxState，
+ * 这里阻塞发送走 gState，两者互不冲突，可以在接收过程中直接发。 */
+static bool ldr_send_cmd(uint8_t mode, uint16_t value)
+{
+    uint8_t buf[LDR_STL_CMD_LEN];
+
+    buf[0] = LDR_STL_HEADER;              /* 0x54 */
+    buf[1] = mode;
+    buf[2] = LDR_STL_CMD_DATA_LEN;        /* 0x04 */
+    buf[3] = (uint8_t)(value & 0xFFU);    /* 目标转速低字节 */
+    buf[4] = (uint8_t)((value >> 8) & 0xFFU);
+    buf[5] = 0U;
+    buf[6] = 0U;
+    buf[7] = ldr_crc8(buf, LDR_STL_CMD_LEN - 1U);
+
+    return HAL_UART_Transmit(&huart6, buf, LDR_STL_CMD_LEN, 50U) == HAL_OK;
+}
+
+/* 启动电机（0xA0） */
+bool ldrobot_stl_cmd_start(void)
+{
+    return ldr_send_cmd(LDR_STL_CMD_START, 0U);
+}
+
+/* 停止电机（0xA1）。停转后不再输出测距帧，500ms 后扫描结果自动失效。 */
+bool ldrobot_stl_cmd_stop(void)
+{
+    return ldr_send_cmd(LDR_STL_CMD_STOP, 0U);
+}
+
+/* 设置目标转速（0xA2）。deg_per_s 必须在 2160~4680 之间（6~13Hz），
+ * 超出范围直接返回 false —— 雷达本身也会忽略这种指令。
+ * 掉电不保存，重新上电回到 10Hz。 */
+bool ldrobot_stl_set_speed(uint16_t deg_per_s)
+{
+    if (deg_per_s < LDR_STL_SPEED_MIN_DPS ||
+        deg_per_s > LDR_STL_SPEED_MAX_DPS) {
+        return false;
+    }
+    return ldr_send_cmd(LDR_STL_CMD_SET_SPEED, deg_per_s);
+}
+
+/* 查询目标转速（0xA3）。雷达会用 0x54 A3 04 <speed_lo> <speed_hi> 00 00 <crc>
+ * 应答，应答帧混在测距数据里，当前没有单独解析它。 */
+bool ldrobot_stl_query_speed(void)
+{
+    return ldr_send_cmd(LDR_STL_CMD_QUERY_SPEED, 0U);
 }

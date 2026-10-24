@@ -92,7 +92,7 @@ void grab_plate(uint8_t id, uint8_t mod) {
     servo_set_angle(SERVO_SG90, servo_place);
     servo_set_angle(SERVO_XH270, grab13_2servo);
     servo_set_angle_quk(SERVO_XH360, plate_one);
-    HAL_Delay(700);
+    HAL_Delay(950);
     servo_set_angle(SERVO_SG90, servo_grab);
     HAL_Delay(500);
     send_motor_place_absolute(motor_up, arm_ullimit);
