@@ -215,14 +215,14 @@ bool pid_to_v(float X_target, float Y_target,
   xki_sum = xki_sum > kI_max ? kI_max : xki_sum > KI_min ? xki_sum : KI_min;
   yki_sum = yki_sum > kI_max ? kI_max : yki_sum > KI_min ? yki_sum : KI_min;
   ang_sum = ang_sum > kI_max ? kI_max : ang_sum > KI_min ? ang_sum : KI_min;
-  if ((HAL_GetTick() - now) < 340 && (abs((int)current_y - Y_target > 500) ||
+  if ((HAL_GetTick() - now) < 300 && (abs((int)current_y - Y_target > 500) ||
                                       abs((int)current_x - X_target) > 500)) {
 
     offs_vx = 80 * (sin(-current_r) + cos(current_r));
     offs_vy = 0;
     offs_wv = 0;
     if (current_r == 90) {
-      offs_vx += 60;
+      offs_vx += 55;
     }
     if ((Y_target - current_y) < -400) {
       offs_vx = -offs_vx;
@@ -283,8 +283,7 @@ static bool pid_turn_split_180(float X_target, float Y_target,
   float err = ang_diff(angle_taget, OPS_angle);
   float mid;
 
-  if (dx * dx + dy * dy >
-      SPLIT_180_POS_TOL_MM * SPLIT_180_POS_TOL_MM) {
+  if (dx * dx + dy * dy > SPLIT_180_POS_TOL_MM * SPLIT_180_POS_TOL_MM) {
     return false; /* 不是原地，不拆 */
   }
   if (fabsf(err) < SPLIT_180_ERR_DEG) {

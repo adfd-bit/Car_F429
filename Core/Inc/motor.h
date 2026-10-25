@@ -22,17 +22,17 @@
 #define ErrTol_r 2.0
 #define kI_max 20000
 #define KI_min -20000
-#define mov_max 210
-#define mov_min -210
+#define mov_max 220
+#define mov_min -220
 #define rad_max 600
 #define rad_min -600
 #define va_max 80
 
 /* 180° 自旋拆成两个 90°（实现在 motor.c 的 pid_turn_split_180）。
  * 原地一次转 180° 时起步扭矩要翻转，容易打滑丢定位，拆成两段更稳。 */
-#define SPLIT_180_ERR_DEG   150.0f /* 角差超过这个值才当作"掉头" */
+#define SPLIT_180_ERR_DEG 150.0f   /* 角差超过这个值才当作"掉头" */
 #define SPLIT_180_POS_TOL_MM 50.0f /* XY 目标在这个范围内算原地自旋 */
-#define SPLIT_180_PAUSE_MS   500U  /* 两段之间的停顿，让车停稳 */
+#define SPLIT_180_PAUSE_MS 500U    /* 两段之间的停顿，让车停稳 */
 
 extern uint32_t ALL_time; /* 定义在 main.c，另见 OPS9.h:24，两处须逐字一致 */
 
