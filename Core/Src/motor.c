@@ -42,12 +42,23 @@ void motor_enable(uint8_t id) {
   HAL_UART_Transmit(&huart3, data, sizeof(data), 100);
   HAL_Delay(10);
 }
+void motor_noenable(uint8_t id) {
+  uint8_t data[6] = {id, 0xF3, 0xAB, 0x00, 0x00, 0x6B};
+  HAL_UART_Transmit(&huart3, data, sizeof(data), 100);
+  HAL_Delay(10);
+}
 void motor_en() {
   motor_enable(1);
   motor_enable(2);
   motor_enable(3);
   motor_enable(4);
   motor_enable(5);
+}
+void motor_noen() {
+  motor_noenable(1);
+  motor_noenable(2);
+  motor_noenable(3);
+  motor_noenable(4);
 }
 void send_motor_place_absolute(uint8_t dir, uint32_t pulse) { //'0'升，'1'降
   if (pulse > 380)
@@ -107,7 +118,6 @@ void motor_go() {
   HAL_UART_Transmit(&huart3, c, 4, HAL_MAX_DELAY);
 }
 void motor_stop() {
-  memset(motor, 0, sizeof(motor));
   HAL_Delay(50);
   uint8_t data[5] = {0x00, 0xFE, 0x98, 0x00, 0x6B};
   HAL_UART_Transmit(&huart3, data, sizeof(data), HAL_MAX_DELAY);
@@ -310,16 +320,23 @@ bool pid_to_goal(float X_target, float Y_target,
                  float angle_taget) { // 绝对坐标 单位mm
                                       // char c[40];
 
-  if (abs((int)(current_r - angle_taget)) > 260) {
-    if (current_r == 90) {
-      angle_taget = 180;
-    } else if (current_r == -90) {
-      angle_taget = -180;
-    } else if (current_r == 180) {
-      angle_taget = 90;
-    } else if (current_r == -180) {
-      angle_taget = -90;
+  /* 目标角取"离 current_r 最近的等价角"，落在 (-180, 180]。
+   * 角度是环形的：±180 是同一个朝向，-90 和 270 也是。
+   * 原来这里是一张硬编码表，current_r==-180 时把目标 90 改写成 -90，
+   * current_r==180 时把 -90 改写成 90 —— 只换了符号没换方向，
+   * 车会转到目标的正对面去。改成按最近方向归一化，不会再反。
+   * 注：pid_to_v 里已经用 ops_cache 对实时读数做过一次就近归一化，
+   * 这里主要是让存进 current_r 的代表角、以及下面判断
+   * "边走边转 / 纯转角度"的 (int)angle_taget == (int)current_r 一致。 */
+  {
+    float t = current_r + ang_diff(angle_taget, current_r);
+    while (t > 180.0f) {
+      t -= 360.0f;
     }
+    while (t <= -180.0f) {
+      t += 360.0f;
+    }
+    angle_taget = t;
   }
   /* 掉头拆两段：只在最外层拆一次，拆完的两次 90° 调用不会再进来。 */
   static uint8_t split_depth = 0U;
@@ -362,6 +379,9 @@ bool pid_to_path(int sta_x, int sta_y, int goal_x,
   }
   for (uint8_t j = 2; j < path_length; j += 2) {
     angle = -90 * (path[j].x - path[j - 2].x) / 2; // 转动到Y轴
+    if (path[j].x == 2 && path[j].y == 4) {
+      angle = 90;
+    }
     /* 掉头判断：原来 (int)(angle - current_r) == 180 在 angle=180 /
      * current_r=-180 时会算出 360，漏判。改成先把角差归一化到最近方向再比。 */
     if (fabsf(ang_diff(angle, current_r)) > 179.0f)

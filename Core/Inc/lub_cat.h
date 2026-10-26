@@ -19,7 +19,7 @@
 #define Pixel_Width_center 335  // x 320
 #define Pixel_Height_center 220 // y 240
 #define ErrTol_cat 10.0
-#define ErrTol_cat_material 200.0
+#define ErrTol_cat_material 100.0
 
 /*-------------------------------发送指令给鲁班猫（协议定义）------------------------*/
 #define CAT_FRAME_FIX_LEN 7 /* 帧固定开销：AF FA + LEN + CMD + CS + CF FC */
@@ -56,6 +56,7 @@ extern volatile int16_t CAT_x;
 extern volatile int16_t CAT_y;
 extern uint8_t CAT_redata[14];
 extern uint32_t ALL_time;
+extern volatile uint8_t current_task_m;
 
 void Lub_Cat_receive_start();
 void Lub_Cat_receive_stop();

@@ -9,6 +9,7 @@
 #include "ldrobot_stl.h"
 
 #include <math.h>
+#include <stdint.h>
 #include <string.h>
 
 // 0:可走
@@ -54,8 +55,8 @@ void InitNodes() {
   }
 }
 void Initreal() {
-  nodes[0][0].real_x = 150;
-  nodes[0][0].real_y = 150;
+  nodes[0][0].real_x = 120;
+  nodes[0][0].real_y = 120;
 
   nodes[MAP_MID][0].real_x = 1050;
   nodes[MAP_MID][0].real_y = 200;
@@ -70,7 +71,7 @@ void Initreal() {
   nodes[0][MAP_END].real_y = 1900;
 
   nodes[MAP_MID][MAP_MID].real_x = 1050;
-  nodes[MAP_MID][MAP_MID].real_y = 1030;
+  nodes[MAP_MID][MAP_MID].real_y = 1040;
 
   nodes[MAP_MID][MAP_END].real_x = 1050;
   nodes[MAP_MID][MAP_END].real_y = 1900;

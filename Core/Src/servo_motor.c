@@ -76,7 +76,7 @@ void servo_set_angle(Servo_ID id, uint16_t angle) {
     for (int i = 0; i < steps; i++) {
       old += step;
       TIM9->CCR1 = angle_to_pulse((uint16_t)old, XH270_min, XH270_max);
-      HAL_Delay(4);
+      HAL_Delay(5);
     }
 
     XH270_old = (uint16_t)target;

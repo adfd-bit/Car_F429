@@ -94,17 +94,22 @@ void Lub_Cat_send(uint8_t cmd, const uint8_t *data, uint8_t data_len) {
 }
 
 /* 色环检测：AF FA 07 01 01 CF FC */
-void Lub_Cat_send_ring(void) { Lub_Cat_send(CAT_CMD_RING, 0, 0); }
+void Lub_Cat_send_ring(void) {
+  current_task_m = 9;
+  Lub_Cat_send(CAT_CMD_RING, 0, 0);
+}
 
 /* 物料识别：color 传 CAT_Color_t，如 CAT_COLOR_RED -> AF FA 08 02 01 03 CF FC
  */
 void Lub_Cat_send_material(CAT_Color_t color) {
+  current_task_m = color + 2;
   uint8_t d = (uint8_t)color; /* 临时变量取地址，保证数据区是 1 字节 */
   Lub_Cat_send(CAT_CMD_MATERIAL, &d, 1);
 }
 
 /* YOLO 识别：id 传 CAT_Yolo_t，如 CAT_YOLO_ALL -> AF FA 08 03 FF FC CF FC */
 void Lub_Cat_send_yolo(CAT_Yolo_t id) {
+  current_task_m = id;
   uint8_t d = (uint8_t)id;
   Lub_Cat_send(CAT_CMD_YOLO, &d, 1);
 }
@@ -152,7 +157,11 @@ bool pid_to_cat(float angle_taget) {
   vx = vx > mov_max ? mov_max : vx > mov_min ? vx : mov_min;
   vy = vy > mov_max ? mov_max : vy > mov_min ? vy : mov_min;
   wv = wv > rad_max ? rad_max : wv > rad_min ? wv : rad_min;
-
+  if (angle_taget == -90) {
+    double temp = vx;
+    vx = -vy;
+    vy = temp;
+  }
   if (angle_taget == 90) {
     double temp = vx;
     vx = vy;
@@ -220,7 +229,7 @@ bool cat_centre_calibrate() {
     }
   }
 }
-bool pid_to_cat_material(float angle_taget) {
+bool pid_to_cat_material(float angle_taget) { // 物块校准，像素误差可以偏大
   if (!catready || !opsready)
     return false;
   catready = false;
@@ -262,12 +271,15 @@ bool pid_to_cat_material(float angle_taget) {
   vy = vy > mov_max ? mov_max : vy > mov_min ? vy : mov_min;
   wv = wv > rad_max ? rad_max : wv > rad_min ? wv : rad_min;
 
-  if (angle_taget == 90) {
+  if (angle_taget == -90) {
+    double temp = vx;
+    vx = -vy;
+    vy = temp;
+  } else if (angle_taget == 90) {
     double temp = vx;
     vx = vy;
     vy = -temp;
-  }
-  if (angle_taget == 0) {
+  } else if (angle_taget == 0) {
     vx = -vx;
     vy = -vy;
   }

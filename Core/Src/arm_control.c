@@ -101,7 +101,6 @@ void grab_plate(uint8_t id, uint8_t mod) {
       servo_set_angle(SERVO_XH270, grab_save_2servo);
       HAL_Delay(300);
     }
-
     break;
   }
   case 2: {
@@ -358,7 +357,7 @@ bool to_material_platform(CAT_Color_t color) {
   Lub_Cat_send_material(color);
   refresh_lubcat();
   motor_stop();
-  if (cat_centre_calibrate()) {
+  if (cat_centre_calibrate_material()) {
     refresh_lubcat();
     HAL_UART_Transmit(&huart1, (uint8_t *)"对齐", sizeof("对齐") - 1,
                       HAL_MAX_DELAY);

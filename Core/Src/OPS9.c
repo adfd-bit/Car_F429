@@ -68,9 +68,9 @@ void set_cur_pos_angle(float angle) {
 // }
 void set_cur_pos(float angle, float x, float y) {
   set_cur_pos_y(y);
-  HAL_Delay(100);
+  HAL_Delay(200);
   set_cur_pos_x(x);
-  HAL_Delay(100);
+  HAL_Delay(200);
   set_cur_pos_angle(angle);
-  HAL_Delay(100);
+  HAL_Delay(200);
 }
